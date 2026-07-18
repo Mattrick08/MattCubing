@@ -1,3 +1,5 @@
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
@@ -31,9 +33,12 @@
   .mc-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 14px;
     margin-bottom: 22px;
   }
+
+  .mc-header-left { display: flex; align-items: center; gap: 14px; }
 
   .mc-logo {
     display: grid;
@@ -63,6 +68,25 @@
     margin-top: 1px;
   }
 
+  .mc-account {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .mc-signout-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12.5px;
+    font-family: var(--body);
+    cursor: pointer;
+  }
+  .mc-signout-btn:hover { border-color: var(--red); color: var(--red); }
+
   .mc-layout {
     display: grid;
     grid-template-columns: 1.6fr 1fr;
@@ -78,6 +102,76 @@
     border-radius: 14px;
     padding: 18px;
   }
+
+  /* Auth screen */
+  .mc-auth-wrap {
+    max-width: 380px;
+    margin: 40px auto;
+  }
+  .mc-auth-wrap h2 {
+    font-family: var(--display);
+    font-size: 18px;
+    margin: 0 0 16px 0;
+  }
+  .mc-auth-field { margin-bottom: 12px; }
+  .mc-auth-field label {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .mc-auth-field input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--body);
+    font-size: 14px;
+    padding: 10px;
+  }
+  .mc-auth-field input:focus { outline: none; border-color: var(--blue); }
+  .mc-auth-error {
+    color: var(--red);
+    font-size: 13px;
+    min-height: 18px;
+    margin-bottom: 6px;
+  }
+  .mc-auth-msg {
+    color: var(--muted);
+    font-size: 12.5px;
+    margin-top: 12px;
+    text-align: center;
+  }
+  .mc-btn-primary {
+    width: 100%;
+    background: var(--blue);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 11px;
+    font-family: var(--body);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .mc-btn-primary:hover { filter: brightness(1.08); }
+  .mc-btn-secondary {
+    width: 100%;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 11px;
+    font-family: var(--body);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .mc-btn-secondary:hover { border-color: var(--blue); }
 
   /* Timer sticker */
   .mc-timer-wrap { margin-bottom: 16px; }
@@ -114,9 +208,7 @@
     letter-spacing: 0.06em;
   }
   @media (prefers-reduced-motion: no-preference) {
-    .mc-timer.pb-flash {
-      animation: mcPb 1.4s ease-out;
-    }
+    .mc-timer.pb-flash { animation: mcPb 1.4s ease-out; }
   }
   @keyframes mcPb {
     0% { box-shadow: 0 0 0 0 rgba(255,212,0,0.6); }
@@ -216,6 +308,7 @@
     cursor: pointer;
   }
   .mc-add-btn:hover { filter: brightness(1.08); }
+  .mc-add-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
   /* History */
   .mc-history-card { margin-top: 18px; }
@@ -255,69 +348,95 @@
 
 <div id="mc-root">
   <div class="mc-header">
-    <div class="mc-logo">
-      <span style="background:#e5293f"></span>
-      <span style="background:#ff8a3d"></span>
-      <span style="background:#ffd400"></span>
-      <span style="background:#2f6bff"></span>
-      <span style="background:#12a454"></span>
-      <span style="background:#eceae0"></span>
+    <div class="mc-header-left">
+      <div class="mc-logo">
+        <span style="background:#e5293f"></span>
+        <span style="background:#ff8a3d"></span>
+        <span style="background:#ffd400"></span>
+        <span style="background:#2f6bff"></span>
+        <span style="background:#12a454"></span>
+        <span style="background:#eceae0"></span>
+      </div>
+      <div class="mc-wordmark">MattCubing<small>Solve times, tracked over every trial</small></div>
     </div>
-    <div class="mc-wordmark">MattCubing<small>Solve times, tracked over every trial</small></div>
+    <div class="mc-account" id="mc-account" style="display:none;">
+      <span id="mc-account-email"></span>
+      <button class="mc-signout-btn" id="mc-signout-btn">Sign out</button>
+    </div>
   </div>
 
-  <div class="mc-timer-wrap">
-    <div class="mc-timer" id="mc-timer">
-      <div class="mc-timer-digits" id="mc-timer-digits">0:00.000</div>
-      <div class="mc-timer-hint" id="mc-timer-hint">Tap or press space to start</div>
+  <!-- Auth screen -->
+  <div id="mc-auth-screen" class="mc-card mc-auth-wrap">
+    <h2 id="mc-auth-title">Sign in to MattCubing</h2>
+    <div class="mc-auth-field">
+      <label for="mc-auth-email">Email</label>
+      <input type="email" id="mc-auth-email" placeholder="you@example.com" autocomplete="email">
     </div>
+    <div class="mc-auth-field">
+      <label for="mc-auth-password">Password</label>
+      <input type="password" id="mc-auth-password" placeholder="At least 6 characters" autocomplete="current-password">
+    </div>
+    <div class="mc-auth-error" id="mc-auth-error"></div>
+    <button class="mc-btn-primary" id="mc-auth-submit">Sign in</button>
+    <button class="mc-btn-secondary" id="mc-auth-toggle">Need an account? Create one</button>
+    <div class="mc-auth-msg" id="mc-auth-msg"></div>
   </div>
 
-  <div class="mc-layout">
-    <div class="mc-card mc-chart-card">
-      <h2>Time per trial</h2>
-      <div id="mc-chart-container"></div>
+  <!-- Main app (shown once signed in) -->
+  <div id="mc-app" style="display:none;">
+    <div class="mc-timer-wrap">
+      <div class="mc-timer" id="mc-timer">
+        <div class="mc-timer-digits" id="mc-timer-digits">0:00.000</div>
+        <div class="mc-timer-hint" id="mc-timer-hint">Tap or press space to start</div>
+      </div>
     </div>
 
-    <div>
-      <div class="mc-card">
-        <div class="mc-stats">
-          <div class="mc-stat best">
-            <span class="mc-stat-label">Best</span>
-            <span class="mc-stat-value" id="mc-stat-best">--:--.---</span>
-          </div>
-          <div class="mc-stat avg">
-            <span class="mc-stat-label">Average</span>
-            <span class="mc-stat-value" id="mc-stat-avg">--:--.---</span>
-          </div>
-          <div class="mc-stat latest">
-            <span class="mc-stat-label">Latest</span>
-            <span class="mc-stat-value" id="mc-stat-latest">--:--.---</span>
-          </div>
-        </div>
-
-        <div class="mc-entry">
-          <div class="mc-entry-row">
-            <div class="mc-entry-field">
-              <label for="mc-in-min">Min</label>
-              <input type="number" id="mc-in-min" min="0" placeholder="0">
-            </div>
-            <div class="mc-entry-field">
-              <label for="mc-in-sec">Sec</label>
-              <input type="number" id="mc-in-sec" min="0" max="59" placeholder="00">
-            </div>
-            <div class="mc-entry-field">
-              <label for="mc-in-ms">Ms</label>
-              <input type="number" id="mc-in-ms" min="0" max="999" placeholder="000">
-            </div>
-          </div>
-          <button class="mc-add-btn" id="mc-add-btn">Add time</button>
-        </div>
+    <div class="mc-layout">
+      <div class="mc-card mc-chart-card">
+        <h2>Time per trial</h2>
+        <div id="mc-chart-container"></div>
       </div>
 
-      <div class="mc-card mc-history-card">
-        <h2>History</h2>
-        <div class="mc-history-list" id="mc-history-list"></div>
+      <div>
+        <div class="mc-card">
+          <div class="mc-stats">
+            <div class="mc-stat best">
+              <span class="mc-stat-label">Best</span>
+              <span class="mc-stat-value" id="mc-stat-best">--:--.---</span>
+            </div>
+            <div class="mc-stat avg">
+              <span class="mc-stat-label">Average</span>
+              <span class="mc-stat-value" id="mc-stat-avg">--:--.---</span>
+            </div>
+            <div class="mc-stat latest">
+              <span class="mc-stat-label">Latest</span>
+              <span class="mc-stat-value" id="mc-stat-latest">--:--.---</span>
+            </div>
+          </div>
+
+          <div class="mc-entry">
+            <div class="mc-entry-row">
+              <div class="mc-entry-field">
+                <label for="mc-in-min">Min</label>
+                <input type="number" id="mc-in-min" min="0" placeholder="0">
+              </div>
+              <div class="mc-entry-field">
+                <label for="mc-in-sec">Sec</label>
+                <input type="number" id="mc-in-sec" min="0" max="59" placeholder="00">
+              </div>
+              <div class="mc-entry-field">
+                <label for="mc-in-ms">Ms</label>
+                <input type="number" id="mc-in-ms" min="0" max="999" placeholder="000">
+              </div>
+            </div>
+            <button class="mc-add-btn" id="mc-add-btn">Add time</button>
+          </div>
+        </div>
+
+        <div class="mc-card mc-history-card">
+          <h2>History</h2>
+          <div class="mc-history-list" id="mc-history-list"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -325,11 +444,21 @@
 
 <script>
 (function() {
-  const STORAGE_KEY = 'mattcubing:solves';
+  // ---- Fill these in with your Supabase project's values ----
+  const SUPABASE_URL = 'arzqbqbbboelwlbzrpmr';
+  const SUPABASE_ANON_KEY = 'arzqbqbbboelwlbzrpmr';
+  // -------------------------------------------------------------
+
+  const sb = (SUPABASE_URL.startsWith('http') && window.supabase)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+
   let solves = []; // { id, ms, ts }
   let running = false;
   let startTs = 0;
   let tickHandle = null;
+  let authMode = 'signin'; // or 'signup'
+  let currentUser = null;
 
   const timerEl = document.getElementById('mc-timer');
   const digitsEl = document.getElementById('mc-timer-digits');
@@ -344,6 +473,19 @@
   const inSec = document.getElementById('mc-in-sec');
   const inMs = document.getElementById('mc-in-ms');
 
+  const authScreen = document.getElementById('mc-auth-screen');
+  const appScreen = document.getElementById('mc-app');
+  const accountBar = document.getElementById('mc-account');
+  const accountEmail = document.getElementById('mc-account-email');
+  const signoutBtn = document.getElementById('mc-signout-btn');
+  const authTitle = document.getElementById('mc-auth-title');
+  const authEmail = document.getElementById('mc-auth-email');
+  const authPassword = document.getElementById('mc-auth-password');
+  const authError = document.getElementById('mc-auth-error');
+  const authSubmit = document.getElementById('mc-auth-submit');
+  const authToggle = document.getElementById('mc-auth-toggle');
+  const authMsg = document.getElementById('mc-auth-msg');
+
   function formatTime(ms) {
     if (ms === null || ms === undefined) return '--:--.---';
     const total = Math.max(0, Math.round(ms));
@@ -353,13 +495,122 @@
     return minutes + ':' + String(seconds).padStart(2, '0') + '.' + String(millis).padStart(3, '0');
   }
 
-  async function saveSolves() {
-    try {
-      await window.storage.set(STORAGE_KEY, JSON.stringify(solves), false);
-    } catch (e) {
-      console.error('Could not save solve times', e);
+  // ---------- Auth ----------
+
+  function setAuthMode(mode) {
+    authMode = mode;
+    authError.textContent = '';
+    authMsg.textContent = '';
+    if (mode === 'signup') {
+      authTitle.textContent = 'Create your MattCubing account';
+      authSubmit.textContent = 'Create account';
+      authToggle.textContent = 'Already have an account? Sign in';
+    } else {
+      authTitle.textContent = 'Sign in to MattCubing';
+      authSubmit.textContent = 'Sign in';
+      authToggle.textContent = "Need an account? Create one";
     }
   }
+
+  authToggle.addEventListener('click', () => {
+    setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
+  });
+
+  async function handleAuthSubmit() {
+    if (!sb) {
+      authError.textContent = 'Backend is not configured yet — add your Supabase URL and key in the code.';
+      return;
+    }
+    const email = authEmail.value.trim();
+    const password = authPassword.value;
+    authError.textContent = '';
+    authMsg.textContent = '';
+    if (!email || !password) {
+      authError.textContent = 'Enter an email and password.';
+      return;
+    }
+    authSubmit.disabled = true;
+    try {
+      if (authMode === 'signup') {
+        const { data, error } = await sb.auth.signUp({ email, password });
+        if (error) throw error;
+        if (data.session) {
+          // Email confirmation is off — signed in immediately.
+        } else {
+          authMsg.textContent = 'Check your email to confirm your account, then sign in.';
+          setAuthMode('signin');
+        }
+      } else {
+        const { error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      }
+    } catch (err) {
+      authError.textContent = err.message || 'Something went wrong.';
+    } finally {
+      authSubmit.disabled = false;
+    }
+  }
+
+  authSubmit.addEventListener('click', handleAuthSubmit);
+  [authEmail, authPassword].forEach(el => {
+    el.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAuthSubmit(); });
+  });
+
+  signoutBtn.addEventListener('click', async () => {
+    if (sb) await sb.auth.signOut();
+  });
+
+  function showAuthScreen() {
+    authScreen.style.display = 'block';
+    appScreen.style.display = 'none';
+    accountBar.style.display = 'none';
+  }
+
+  function showApp(user) {
+    authScreen.style.display = 'none';
+    appScreen.style.display = 'block';
+    accountBar.style.display = 'flex';
+    accountEmail.textContent = user.email;
+  }
+
+  // ---------- Data (Supabase-backed) ----------
+
+  async function fetchSolves() {
+    if (!sb || !currentUser) { solves = []; return; }
+    const { data, error } = await sb
+      .from('solves')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: true });
+    if (error) { console.error('Could not load solves', error); solves = []; return; }
+    solves = data.map(r => ({ id: r.id, ms: r.ms, ts: new Date(r.created_at).getTime() }));
+  }
+
+  async function addSolve(ms, flashPb) {
+    if (!sb || !currentUser) return;
+    const { error } = await sb.from('solves').insert({ user_id: currentUser.id, ms });
+    if (error) { console.error('Could not save time', error); return; }
+    await fetchSolves();
+    render();
+    if (flashPb) {
+      const stats = computeStats();
+      if (stats.bestIdx === solves.length - 1) {
+        timerEl.classList.remove('pb-flash');
+        void timerEl.offsetWidth;
+        timerEl.classList.add('pb-flash');
+      }
+    }
+  }
+
+  async function deleteSolve(id) {
+    if (!sb) return;
+    const { error } = await sb.from('solves').delete().eq('id', id);
+    if (error) { console.error('Could not delete time', error); return; }
+    await fetchSolves();
+    render();
+  }
+
+  // ---------- Rendering ----------
 
   function computeStats() {
     if (solves.length === 0) return { best: null, avg: null, latest: null, bestIdx: -1 };
@@ -368,12 +619,7 @@
       sum += s.ms;
       if (s.ms < bestMs) { bestMs = s.ms; bestIdx = i; }
     });
-    return {
-      best: bestMs,
-      avg: sum / solves.length,
-      latest: solves[solves.length - 1].ms,
-      bestIdx
-    };
+    return { best: bestMs, avg: sum / solves.length, latest: solves[solves.length - 1].ms, bestIdx };
   }
 
   function renderStats(stats) {
@@ -395,7 +641,6 @@
       chartContainer.innerHTML = '<div class="mc-empty">No solves yet — add your first time to see your progress here.</div>';
       return;
     }
-
     const W = 640, H = 260;
     const padL = 46, padR = 14, padT = 16, padB = 30;
     const plotW = W - padL - padR;
@@ -446,7 +691,7 @@
       xLabels += `<text x="${x}" y="${H - 8}" text-anchor="middle" font-size="10.5" fill="#8b8d9a" font-family="Inter, sans-serif">#${i + 1}</text>`;
     });
 
-    const svg = `
+    chartContainer.innerHTML = `
       <svg class="mc-chart-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
         ${gridLines}
         ${gridLabels}
@@ -455,7 +700,6 @@
         ${xLabels}
       </svg>
     `;
-    chartContainer.innerHTML = svg;
   }
 
   function renderHistory(stats) {
@@ -485,32 +729,13 @@
     renderHistory(stats);
   }
 
-  async function addSolve(ms, flashPb) {
-    solves.push({ id: Date.now() + Math.random(), ms, ts: Date.now() });
-    await saveSolves();
-    render();
-    if (flashPb) {
-      const stats = computeStats();
-      if (stats.bestIdx === solves.length - 1) {
-        timerEl.classList.remove('pb-flash');
-        void timerEl.offsetWidth;
-        timerEl.classList.add('pb-flash');
-      }
-    }
-  }
-
-  async function deleteSolve(id) {
-    solves = solves.filter(s => String(s.id) !== String(id));
-    await saveSolves();
-    render();
-  }
-
   historyList.addEventListener('click', (e) => {
     const btn = e.target.closest('.mc-del-btn');
     if (btn) deleteSolve(btn.dataset.id);
   });
 
-  // Stopwatch
+  // ---------- Stopwatch ----------
+
   function tick() {
     const elapsed = performance.now() - startTs;
     digitsEl.textContent = formatTime(elapsed);
@@ -546,7 +771,8 @@
     }
   });
 
-  // Manual entry
+  // ---------- Manual entry ----------
+
   function shakeInvalid(el) {
     el.classList.remove('mc-shake');
     void el.offsetWidth;
@@ -569,20 +795,25 @@
 
   addBtn.addEventListener('click', handleAdd);
   [inMin, inSec, inMs].forEach(el => {
-    el.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') handleAdd();
-    });
+    el.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAdd(); });
   });
 
-  // Init
-  (async function init() {
-    try {
-      const result = await window.storage.get(STORAGE_KEY, false);
-      solves = result && result.value ? JSON.parse(result.value) : [];
-    } catch (e) {
-      solves = [];
-    }
-    render();
-  })();
+  // ---------- Init ----------
+
+  if (!sb) {
+    authError.textContent = 'Backend is not configured yet — add your Supabase URL and key in the code (see comment near the top of the script).';
+  } else {
+    sb.auth.onAuthStateChange(async (event, session) => {
+      if (session && session.user) {
+        currentUser = session.user;
+        showApp(currentUser);
+        await fetchSolves();
+        render();
+      } else {
+        currentUser = null;
+        showAuthScreen();
+      }
+    });
+  }
 })();
 </script>
