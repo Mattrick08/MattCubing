@@ -1,0 +1,588 @@
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  #mc-root {
+    --bg: #15161c;
+    --panel: #1c1e27;
+    --panel-2: #21232e;
+    --border: rgba(255,255,255,0.08);
+    --text: #f0eee4;
+    --muted: #8b8d9a;
+    --yellow: #ffd400;
+    --red: #e5293f;
+    --blue: #2f6bff;
+    --green: #12a454;
+    --orange: #ff8a3d;
+    --white-sq: #eceae0;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --display: 'Sora', 'Segoe UI', sans-serif;
+    --body: 'Inter', 'Segoe UI', sans-serif;
+
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    padding: 28px;
+    border-radius: 12px;
+    min-height: 100%;
+  }
+
+  #mc-root * { box-sizing: border-box; }
+
+  .mc-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+
+  .mc-logo {
+    display: grid;
+    grid-template-columns: repeat(3, 13px);
+    grid-template-rows: repeat(2, 13px);
+    gap: 3px;
+    transform: rotate(-4deg);
+  }
+  .mc-logo span {
+    border-radius: 3px;
+    display: block;
+  }
+
+  .mc-wordmark {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+  }
+  .mc-wordmark small {
+    display: block;
+    font-family: var(--body);
+    font-weight: 500;
+    font-size: 12.5px;
+    color: var(--muted);
+    letter-spacing: 0.01em;
+    margin-top: 1px;
+  }
+
+  .mc-layout {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 780px) {
+    .mc-layout { grid-template-columns: 1fr; }
+  }
+
+  .mc-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+  }
+
+  /* Timer sticker */
+  .mc-timer-wrap { margin-bottom: 16px; }
+  .mc-timer {
+    background: var(--yellow);
+    color: #1a1408;
+    border-radius: 16px;
+    border: 4px solid rgba(0,0,0,0.15);
+    padding: 30px 20px;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+  .mc-timer:active { transform: scale(0.99); }
+  .mc-timer.running {
+    background: var(--green);
+    color: #06180f;
+  }
+  .mc-timer-digits {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: clamp(38px, 6vw, 58px);
+    letter-spacing: -0.01em;
+    line-height: 1;
+  }
+  .mc-timer-hint {
+    font-family: var(--body);
+    font-size: 12.5px;
+    font-weight: 600;
+    margin-top: 8px;
+    opacity: 0.75;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .mc-timer.pb-flash {
+      animation: mcPb 1.4s ease-out;
+    }
+  }
+  @keyframes mcPb {
+    0% { box-shadow: 0 0 0 0 rgba(255,212,0,0.6); }
+    100% { box-shadow: 0 0 0 22px rgba(255,212,0,0); }
+  }
+
+  .mc-chart-card h2, .mc-history-card h2 {
+    font-family: var(--display);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 12px 0;
+  }
+
+  .mc-empty {
+    color: var(--muted);
+    font-size: 13.5px;
+    padding: 30px 6px;
+    text-align: center;
+  }
+
+  /* Stats */
+  .mc-stats { display: flex; flex-direction: column; gap: 10px; }
+  .mc-stat {
+    background: var(--panel-2);
+    border-radius: 12px;
+    padding: 12px 14px;
+    border-left: 4px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .mc-stat.best { border-left-color: var(--yellow); }
+  .mc-stat.avg { border-left-color: var(--blue); }
+  .mc-stat.latest { border-left-color: var(--green); }
+  .mc-stat-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .mc-stat-value {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 20px;
+  }
+
+  /* Manual entry */
+  .mc-entry { margin-top: 16px; }
+  .mc-entry-row { display: flex; gap: 8px; align-items: center; }
+  .mc-entry-field { flex: 1; min-width: 0; }
+  .mc-entry-field label {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .mc-entry-field input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 16px;
+    padding: 8px 6px;
+    text-align: center;
+  }
+  .mc-entry-field input:focus {
+    outline: none;
+    border-color: var(--blue);
+  }
+  .mc-entry-field input.mc-shake {
+    animation: mcShake 0.3s ease;
+    border-color: var(--red);
+  }
+  @keyframes mcShake {
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+  }
+  .mc-add-btn {
+    margin-top: 10px;
+    width: 100%;
+    background: var(--blue);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px;
+    font-family: var(--body);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .mc-add-btn:hover { filter: brightness(1.08); }
+
+  /* History */
+  .mc-history-card { margin-top: 18px; }
+  .mc-history-list {
+    max-height: 260px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .mc-history-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--panel-2);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13.5px;
+  }
+  .mc-history-trial { color: var(--muted); width: 42px; flex-shrink: 0; }
+  .mc-history-time { font-family: var(--mono); font-weight: 600; flex: 1; }
+  .mc-history-time.mc-is-best { color: var(--yellow); }
+  .mc-del-btn {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: 6px;
+    line-height: 1;
+  }
+  .mc-del-btn:hover { color: var(--red); background: rgba(229,41,63,0.12); }
+
+  .mc-chart-svg { width: 100%; height: auto; display: block; }
+</style>
+
+<div id="mc-root">
+  <div class="mc-header">
+    <div class="mc-logo">
+      <span style="background:#e5293f"></span>
+      <span style="background:#ff8a3d"></span>
+      <span style="background:#ffd400"></span>
+      <span style="background:#2f6bff"></span>
+      <span style="background:#12a454"></span>
+      <span style="background:#eceae0"></span>
+    </div>
+    <div class="mc-wordmark">MattCubing<small>Solve times, tracked over every trial</small></div>
+  </div>
+
+  <div class="mc-timer-wrap">
+    <div class="mc-timer" id="mc-timer">
+      <div class="mc-timer-digits" id="mc-timer-digits">0:00.000</div>
+      <div class="mc-timer-hint" id="mc-timer-hint">Tap or press space to start</div>
+    </div>
+  </div>
+
+  <div class="mc-layout">
+    <div class="mc-card mc-chart-card">
+      <h2>Time per trial</h2>
+      <div id="mc-chart-container"></div>
+    </div>
+
+    <div>
+      <div class="mc-card">
+        <div class="mc-stats">
+          <div class="mc-stat best">
+            <span class="mc-stat-label">Best</span>
+            <span class="mc-stat-value" id="mc-stat-best">--:--.---</span>
+          </div>
+          <div class="mc-stat avg">
+            <span class="mc-stat-label">Average</span>
+            <span class="mc-stat-value" id="mc-stat-avg">--:--.---</span>
+          </div>
+          <div class="mc-stat latest">
+            <span class="mc-stat-label">Latest</span>
+            <span class="mc-stat-value" id="mc-stat-latest">--:--.---</span>
+          </div>
+        </div>
+
+        <div class="mc-entry">
+          <div class="mc-entry-row">
+            <div class="mc-entry-field">
+              <label for="mc-in-min">Min</label>
+              <input type="number" id="mc-in-min" min="0" placeholder="0">
+            </div>
+            <div class="mc-entry-field">
+              <label for="mc-in-sec">Sec</label>
+              <input type="number" id="mc-in-sec" min="0" max="59" placeholder="00">
+            </div>
+            <div class="mc-entry-field">
+              <label for="mc-in-ms">Ms</label>
+              <input type="number" id="mc-in-ms" min="0" max="999" placeholder="000">
+            </div>
+          </div>
+          <button class="mc-add-btn" id="mc-add-btn">Add time</button>
+        </div>
+      </div>
+
+      <div class="mc-card mc-history-card">
+        <h2>History</h2>
+        <div class="mc-history-list" id="mc-history-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const STORAGE_KEY = 'mattcubing:solves';
+  let solves = []; // { id, ms, ts }
+  let running = false;
+  let startTs = 0;
+  let tickHandle = null;
+
+  const timerEl = document.getElementById('mc-timer');
+  const digitsEl = document.getElementById('mc-timer-digits');
+  const hintEl = document.getElementById('mc-timer-hint');
+  const chartContainer = document.getElementById('mc-chart-container');
+  const historyList = document.getElementById('mc-history-list');
+  const statBest = document.getElementById('mc-stat-best');
+  const statAvg = document.getElementById('mc-stat-avg');
+  const statLatest = document.getElementById('mc-stat-latest');
+  const addBtn = document.getElementById('mc-add-btn');
+  const inMin = document.getElementById('mc-in-min');
+  const inSec = document.getElementById('mc-in-sec');
+  const inMs = document.getElementById('mc-in-ms');
+
+  function formatTime(ms) {
+    if (ms === null || ms === undefined) return '--:--.---';
+    const total = Math.max(0, Math.round(ms));
+    const minutes = Math.floor(total / 60000);
+    const seconds = Math.floor((total % 60000) / 1000);
+    const millis = total % 1000;
+    return minutes + ':' + String(seconds).padStart(2, '0') + '.' + String(millis).padStart(3, '0');
+  }
+
+  async function saveSolves() {
+    try {
+      await window.storage.set(STORAGE_KEY, JSON.stringify(solves), false);
+    } catch (e) {
+      console.error('Could not save solve times', e);
+    }
+  }
+
+  function computeStats() {
+    if (solves.length === 0) return { best: null, avg: null, latest: null, bestIdx: -1 };
+    let bestMs = Infinity, bestIdx = -1, sum = 0;
+    solves.forEach((s, i) => {
+      sum += s.ms;
+      if (s.ms < bestMs) { bestMs = s.ms; bestIdx = i; }
+    });
+    return {
+      best: bestMs,
+      avg: sum / solves.length,
+      latest: solves[solves.length - 1].ms,
+      bestIdx
+    };
+  }
+
+  function renderStats(stats) {
+    statBest.textContent = formatTime(stats.best);
+    statAvg.textContent = formatTime(stats.avg);
+    statLatest.textContent = formatTime(stats.latest);
+  }
+
+  function axisLabel(ms) {
+    const totalSec = ms / 1000;
+    if (totalSec < 60) return totalSec.toFixed(1) + 's';
+    const m = Math.floor(totalSec / 60);
+    const s = Math.round(totalSec % 60);
+    return m + ':' + String(s).padStart(2, '0');
+  }
+
+  function buildChart(stats) {
+    if (solves.length === 0) {
+      chartContainer.innerHTML = '<div class="mc-empty">No solves yet — add your first time to see your progress here.</div>';
+      return;
+    }
+
+    const W = 640, H = 260;
+    const padL = 46, padR = 14, padT = 16, padB = 30;
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+
+    const times = solves.map(s => s.ms);
+    let yMin = Math.min(...times);
+    let yMax = Math.max(...times);
+    if (yMin === yMax) { yMin -= 1000; yMax += 1000; }
+    const span = yMax - yMin;
+    yMin -= span * 0.12;
+    yMax += span * 0.12;
+
+    const n = times.length;
+    const xFor = (i) => n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW;
+    const yFor = (v) => padT + (1 - (v - yMin) / (yMax - yMin)) * plotH;
+
+    let gridLines = '';
+    let gridLabels = '';
+    const ticks = 4;
+    for (let t = 0; t <= ticks; t++) {
+      const v = yMin + (t / ticks) * (yMax - yMin);
+      const y = yFor(v);
+      gridLines += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>`;
+      gridLabels += `<text x="${padL - 8}" y="${y + 4}" text-anchor="end" font-size="10.5" fill="#8b8d9a" font-family="JetBrains Mono, monospace">${axisLabel(v)}</text>`;
+    }
+
+    let pathD = '';
+    times.forEach((v, i) => {
+      const x = xFor(i), y = yFor(v);
+      pathD += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+    });
+
+    let points = '';
+    times.forEach((v, i) => {
+      const x = xFor(i), y = yFor(v);
+      const isBest = i === stats.bestIdx;
+      const isLatest = i === n - 1;
+      const r = isBest ? 5.5 : 3.4;
+      const fill = isBest ? '#ffd400' : (isLatest ? '#12a454' : '#2f6bff');
+      points += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" fill="${fill}" stroke="#15161c" stroke-width="1.5"/>`;
+    });
+
+    let xLabels = '';
+    const labelIdxs = n <= 6 ? times.map((_, i) => i) : [0, Math.floor((n - 1) / 2), n - 1];
+    labelIdxs.forEach(i => {
+      const x = xFor(i);
+      xLabels += `<text x="${x}" y="${H - 8}" text-anchor="middle" font-size="10.5" fill="#8b8d9a" font-family="Inter, sans-serif">#${i + 1}</text>`;
+    });
+
+    const svg = `
+      <svg class="mc-chart-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+        ${gridLines}
+        ${gridLabels}
+        <path d="${pathD.trim()}" fill="none" stroke="#2f6bff" stroke-width="2"/>
+        ${points}
+        ${xLabels}
+      </svg>
+    `;
+    chartContainer.innerHTML = svg;
+  }
+
+  function renderHistory(stats) {
+    if (solves.length === 0) {
+      historyList.innerHTML = '<div class="mc-empty">Nothing here yet.</div>';
+      return;
+    }
+    let html = '';
+    for (let i = solves.length - 1; i >= 0; i--) {
+      const s = solves[i];
+      const isBest = i === stats.bestIdx;
+      html += `
+        <div class="mc-history-row">
+          <span class="mc-history-trial">#${i + 1}</span>
+          <span class="mc-history-time ${isBest ? 'mc-is-best' : ''}">${formatTime(s.ms)}</span>
+          <button class="mc-del-btn" data-id="${s.id}" title="Delete this time" aria-label="Delete this time">✕</button>
+        </div>
+      `;
+    }
+    historyList.innerHTML = html;
+  }
+
+  function render() {
+    const stats = computeStats();
+    renderStats(stats);
+    buildChart(stats);
+    renderHistory(stats);
+  }
+
+  async function addSolve(ms, flashPb) {
+    solves.push({ id: Date.now() + Math.random(), ms, ts: Date.now() });
+    await saveSolves();
+    render();
+    if (flashPb) {
+      const stats = computeStats();
+      if (stats.bestIdx === solves.length - 1) {
+        timerEl.classList.remove('pb-flash');
+        void timerEl.offsetWidth;
+        timerEl.classList.add('pb-flash');
+      }
+    }
+  }
+
+  async function deleteSolve(id) {
+    solves = solves.filter(s => String(s.id) !== String(id));
+    await saveSolves();
+    render();
+  }
+
+  historyList.addEventListener('click', (e) => {
+    const btn = e.target.closest('.mc-del-btn');
+    if (btn) deleteSolve(btn.dataset.id);
+  });
+
+  // Stopwatch
+  function tick() {
+    const elapsed = performance.now() - startTs;
+    digitsEl.textContent = formatTime(elapsed);
+  }
+
+  function startTimer() {
+    running = true;
+    startTs = performance.now();
+    timerEl.classList.add('running');
+    hintEl.textContent = 'Tap or press space to stop';
+    tickHandle = setInterval(tick, 30);
+  }
+
+  function stopTimer() {
+    running = false;
+    clearInterval(tickHandle);
+    const elapsed = performance.now() - startTs;
+    timerEl.classList.remove('running');
+    hintEl.textContent = 'Tap or press space to start';
+    digitsEl.textContent = formatTime(elapsed);
+    addSolve(elapsed, true);
+  }
+
+  function toggleTimer() {
+    if (running) stopTimer(); else startTimer();
+  }
+
+  timerEl.addEventListener('click', toggleTimer);
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') {
+      e.preventDefault();
+      toggleTimer();
+    }
+  });
+
+  // Manual entry
+  function shakeInvalid(el) {
+    el.classList.remove('mc-shake');
+    void el.offsetWidth;
+    el.classList.add('mc-shake');
+  }
+
+  async function handleAdd() {
+    const min = parseInt(inMin.value, 10) || 0;
+    const sec = parseInt(inSec.value, 10) || 0;
+    const millis = parseInt(inMs.value, 10) || 0;
+    const total = min * 60000 + sec * 1000 + millis;
+    if (total <= 0) {
+      shakeInvalid(inMin); shakeInvalid(inSec); shakeInvalid(inMs);
+      return;
+    }
+    await addSolve(total, true);
+    inMin.value = ''; inSec.value = ''; inMs.value = '';
+    inMin.focus();
+  }
+
+  addBtn.addEventListener('click', handleAdd);
+  [inMin, inSec, inMs].forEach(el => {
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleAdd();
+    });
+  });
+
+  // Init
+  (async function init() {
+    try {
+      const result = await window.storage.get(STORAGE_KEY, false);
+      solves = result && result.value ? JSON.parse(result.value) : [];
+    } catch (e) {
+      solves = [];
+    }
+    render();
+  })();
+})();
+</script>
