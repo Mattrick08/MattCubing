@@ -2,7 +2,7 @@
   "name": "MattCubing",
   "short_name": "MattCubing",
   "description": "Track your Rubik's cube solve times across every trial — timer, stats, and progress chart, saved automatically.",
-  "start_url": "./mattcubing.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#15161c",
   "theme_color": "#ffd400",
