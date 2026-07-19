@@ -403,11 +403,18 @@
   <div id="mc-app" style="display:none;">
 
     <div class="mc-card mc-scramble-card">
-      <div>
+      <div id="mc-scramble-content">
         <div class="mc-scramble-label">Scramble</div>
         <div class="mc-scramble-text" id="mc-scramble-text">—</div>
       </div>
-      <button class="mc-scramble-refresh" id="mc-scramble-refresh">New scramble</button>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button class="mc-scramble-refresh" id="mc-scramble-refresh">New scramble</button>
+        <label style="position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0;">
+          <input type="checkbox" id="mc-scramble-toggle" checked style="opacity:0; width:0; height:0;">
+          <span id="mc-scramble-track" style="position:absolute; inset:0; background:var(--panel-2); border:1px solid var(--border); border-radius:999px; cursor:pointer; transition:background 0.15s ease;"></span>
+          <span id="mc-scramble-knob" style="position:absolute; top:3px; left:3px; width:16px; height:16px; background:var(--muted); border-radius:50%; transition:transform 0.15s ease;"></span>
+        </label>
+      </div>
     </div>
 
     <div class="mc-card" style="margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; padding:12px 18px;">
@@ -498,6 +505,7 @@
   let solves = []; // { id, ms, ts, scramble, penalty, note }
   let currentUser = null;
   let currentScramble = '';
+  let useScramble = true;
 
   // Timer state machine: 'idle' -> 'inspecting' -> 'running' -> 'idle'
   let timerState = 'idle';
@@ -527,6 +535,23 @@
   const inMs = document.getElementById('mc-in-ms');
   const scrambleTextEl = document.getElementById('mc-scramble-text');
   const scrambleRefreshBtn = document.getElementById('mc-scramble-refresh');
+  const scrambleContentEl = document.getElementById('mc-scramble-content');
+  const scrambleToggle = document.getElementById('mc-scramble-toggle');
+  const scrambleTrack = document.getElementById('mc-scramble-track');
+  const scrambleKnob = document.getElementById('mc-scramble-knob');
+
+  function updateScrambleSwitchUI() {
+    scrambleTrack.style.background = useScramble ? 'var(--blue)' : 'var(--panel-2)';
+    scrambleKnob.style.background = useScramble ? '#ffffff' : 'var(--muted)';
+    scrambleKnob.style.transform = useScramble ? 'translateX(18px)' : 'translateX(0)';
+    scrambleContentEl.style.display = useScramble ? 'block' : 'none';
+    scrambleRefreshBtn.style.display = useScramble ? 'inline-block' : 'none';
+  }
+  scrambleToggle.addEventListener('change', () => {
+    useScramble = scrambleToggle.checked;
+    updateScrambleSwitchUI();
+  });
+  updateScrambleSwitchUI();
   const inspectionToggle = document.getElementById('mc-inspection-toggle');
   const inspectionTrack = document.getElementById('mc-inspection-track');
   const inspectionKnob = document.getElementById('mc-inspection-knob');
@@ -1034,7 +1059,7 @@
       timerSolveEl.textContent = '';
       timerOvertimeEl.textContent = '';
     }
-    const scrambleForThisSolve = currentScramble;
+    const scrambleForThisSolve = useScramble ? currentScramble : '';
     pendingOvertimeMs = 0;
     await addSolve(raw, overtime, scrambleForThisSolve, true);
     newScramble();
@@ -1076,7 +1101,7 @@
       shakeInvalid(inMin); shakeInvalid(inSec); shakeInvalid(inMs);
       return;
     }
-    await addSolve(total, 0, currentScramble, true);
+    await addSolve(total, 0, useScramble ? currentScramble : '', true);
     newScramble();
     inMin.value = ''; inSec.value = ''; inMs.value = '';
     inMin.focus();
