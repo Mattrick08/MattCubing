@@ -403,7 +403,7 @@
     <div class="mc-timer-wrap">
       <div class="mc-timer" id="mc-timer">
         <div class="mc-timer-digits" id="mc-timer-digits">0:00.000</div>
-        <div class="mc-timer-hint" id="mc-timer-hint">Tap or press space to start inspection</div>
+        <div class="mc-timer-hint" id="mc-timer-hint">Tap or press space to start</div>
       </div>
     </div>
 
@@ -499,6 +499,23 @@
   const inMs = document.getElementById('mc-in-ms');
   const scrambleTextEl = document.getElementById('mc-scramble-text');
   const scrambleRefreshBtn = document.getElementById('mc-scramble-refresh');
+  const inspectionToggle = document.getElementById('mc-inspection-toggle');
+  const inspectionTrack = document.getElementById('mc-inspection-track');
+  const inspectionKnob = document.getElementById('mc-inspection-knob');
+
+  function updateInspectionSwitchUI() {
+    inspectionTrack.style.background = useInspection ? 'var(--blue)' : 'var(--panel-2)';
+    inspectionKnob.style.background = useInspection ? '#ffffff' : 'var(--muted)';
+    inspectionKnob.style.transform = useInspection ? 'translateX(18px)' : 'translateX(0)';
+  }
+  inspectionToggle.addEventListener('change', () => {
+    useInspection = inspectionToggle.checked;
+    updateInspectionSwitchUI();
+    if (timerState === 'idle') {
+      hintEl.textContent = useInspection ? 'Tap or press space to start inspection' : 'Tap or press space to start';
+    }
+  });
+  updateInspectionSwitchUI();
 
   const authScreen = document.getElementById('mc-auth-screen');
   const appScreen = document.getElementById('mc-app');
@@ -990,7 +1007,7 @@
     const elapsed = performance.now() - solveStart;
     timerState = 'idle';
     timerEl.classList.remove('running', 'inspecting');
-    hintEl.textContent = 'Tap or press space to start inspection';
+    hintEl.textContent = 'Tap or press space to start';
     digitsEl.textContent = formatTime(elapsed);
     const penaltyForThisSolve = pendingPenalty;
     const scrambleForThisSolve = currentScramble;
@@ -1000,7 +1017,10 @@
   }
 
   function handleTimerPress() {
-    if (timerState === 'idle') startInspection();
+    if (timerState === 'idle') {
+      if (useInspection) startInspection();
+      else { pendingPenalty = 'none'; startSolveTimer(); }
+    }
     else if (timerState === 'inspecting') endInspectionAndStart();
     else if (timerState === 'running') stopSolveTimer();
   }
