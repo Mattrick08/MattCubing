@@ -125,74 +125,64 @@
   }
 
   /* Auth screen */
-  .mc-auth-wrap {
-    max-width: 380px;
-    margin: 40px auto;
-  }
-  .mc-auth-wrap h2 {
-    font-family: var(--display);
-    font-size: 18px;
-    margin: 0 0 16px 0;
-  }
+  .mc-auth-wrap { max-width: 380px; margin: 40px auto; }
+  .mc-auth-wrap h2 { font-family: var(--display); font-size: 18px; margin: 0 0 16px 0; }
   .mc-auth-field { margin-bottom: 12px; }
   .mc-auth-field label {
-    display: block;
-    font-size: 11px;
-    color: var(--muted);
-    margin-bottom: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px;
+    text-transform: uppercase; letter-spacing: 0.05em;
   }
   .mc-auth-field input {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    font-family: var(--body);
-    font-size: 14px;
-    padding: 10px;
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: var(--body); font-size: 14px; padding: 10px;
   }
   .mc-auth-field input:focus { outline: none; border-color: var(--blue); }
-  .mc-auth-error {
-    color: var(--red);
-    font-size: 13px;
-    min-height: 18px;
-    margin-bottom: 6px;
-  }
-  .mc-auth-msg {
-    color: var(--muted);
-    font-size: 12.5px;
-    margin-top: 12px;
-    text-align: center;
-  }
+  .mc-auth-error { color: var(--red); font-size: 13px; min-height: 18px; margin-bottom: 6px; }
+  .mc-auth-msg { color: var(--muted); font-size: 12.5px; margin-top: 12px; text-align: center; }
   .mc-btn-primary {
-    width: 100%;
-    background: var(--blue);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 11px;
-    font-family: var(--body);
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
+    width: 100%; background: var(--blue); color: white; border: none; border-radius: 8px;
+    padding: 11px; font-family: var(--body); font-weight: 600; font-size: 14px; cursor: pointer;
   }
   .mc-btn-primary:hover { filter: brightness(1.08); }
   .mc-btn-secondary {
-    width: 100%;
-    background: var(--panel-2);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 11px;
-    font-family: var(--body);
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-    margin-top: 8px;
+    width: 100%; background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 11px; font-family: var(--body); font-weight: 600; font-size: 14px;
+    cursor: pointer; margin-top: 8px;
   }
   .mc-btn-secondary:hover { border-color: var(--blue); }
+
+  /* Scramble */
+  .mc-scramble-card {
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .mc-scramble-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+  }
+  .mc-scramble-text {
+    font-family: var(--mono);
+    font-size: 15px;
+    letter-spacing: 0.02em;
+    word-spacing: 4px;
+  }
+  .mc-scramble-refresh {
+    flex-shrink: 0;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .mc-scramble-refresh:hover { border-color: var(--blue); }
 
   /* Timer sticker */
   .mc-timer-wrap { margin-bottom: 16px; }
@@ -208,10 +198,8 @@
     transition: background 0.15s ease, transform 0.1s ease;
   }
   .mc-timer:active { transform: scale(0.99); }
-  .mc-timer.running {
-    background: var(--green);
-    color: #06180f;
-  }
+  .mc-timer.inspecting { background: var(--orange); color: #2a1400; }
+  .mc-timer.running { background: var(--green); color: #06180f; }
   .mc-timer-digits {
     font-family: var(--mono);
     font-weight: 700;
@@ -224,7 +212,7 @@
     font-size: 12.5px;
     font-weight: 600;
     margin-top: 8px;
-    opacity: 0.75;
+    opacity: 0.8;
     text-transform: uppercase;
     letter-spacing: 0.06em;
   }
@@ -237,132 +225,113 @@
   }
 
   .mc-chart-card h2, .mc-history-card h2 {
-    font-family: var(--display);
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin: 0 0 12px 0;
+    font-family: var(--display); font-size: 14px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 12px 0;
   }
 
-  .mc-empty {
-    color: var(--muted);
-    font-size: 13.5px;
-    padding: 30px 6px;
-    text-align: center;
-  }
+  .mc-empty { color: var(--muted); font-size: 13.5px; padding: 30px 6px; text-align: center; }
 
   /* Stats */
   .mc-stats { display: flex; flex-direction: column; gap: 10px; }
   .mc-stat {
-    background: var(--panel-2);
-    border-radius: 12px;
-    padding: 12px 14px;
-    border-left: 4px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
+    background: var(--panel-2); border-radius: 12px; padding: 12px 14px;
+    border-left: 4px solid var(--border); display: flex; justify-content: space-between; align-items: baseline;
   }
   .mc-stat.best { border-left-color: var(--yellow); }
   .mc-stat.avg { border-left-color: var(--blue); }
   .mc-stat.latest { border-left-color: var(--green); }
-  .mc-stat-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  .mc-stat-value {
-    font-family: var(--mono);
-    font-weight: 700;
-    font-size: 20px;
-  }
+  .mc-stat-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .mc-stat-value { font-family: var(--mono); font-weight: 700; font-size: 20px; }
 
   /* Manual entry */
   .mc-entry { margin-top: 16px; }
   .mc-entry-row { display: flex; gap: 8px; align-items: center; }
   .mc-entry-field { flex: 1; min-width: 0; }
   .mc-entry-field label {
-    display: block;
-    font-size: 11px;
-    color: var(--muted);
-    margin-bottom: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px;
+    text-transform: uppercase; letter-spacing: 0.05em;
   }
   .mc-entry-field input {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 16px;
-    padding: 8px 6px;
-    text-align: center;
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: var(--mono); font-size: 16px; padding: 8px 6px; text-align: center;
   }
-  .mc-entry-field input:focus {
-    outline: none;
-    border-color: var(--blue);
-  }
-  .mc-entry-field input.mc-shake {
-    animation: mcShake 0.3s ease;
-    border-color: var(--red);
-  }
-  @keyframes mcShake {
-    25% { transform: translateX(-3px); }
-    75% { transform: translateX(3px); }
-  }
+  .mc-entry-field input:focus { outline: none; border-color: var(--blue); }
+  .mc-entry-field input.mc-shake { animation: mcShake 0.3s ease; border-color: var(--red); }
+  @keyframes mcShake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
   .mc-add-btn {
-    margin-top: 10px;
-    width: 100%;
-    background: var(--blue);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 10px;
-    font-family: var(--body);
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
+    margin-top: 10px; width: 100%; background: var(--blue); color: white; border: none; border-radius: 8px;
+    padding: 10px; font-family: var(--body); font-weight: 600; font-size: 14px; cursor: pointer;
   }
   .mc-add-btn:hover { filter: brightness(1.08); }
-  .mc-add-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
   /* History */
   .mc-history-card { margin-top: 18px; }
-  .mc-history-list {
-    max-height: 260px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
+  .mc-history-list { max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
   .mc-history-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--panel-2);
-    border-radius: 8px;
-    padding: 8px 10px;
-    font-size: 13.5px;
+    background: var(--panel-2); border-radius: 10px; padding: 9px 10px; font-size: 13.5px;
   }
-  .mc-history-trial { color: var(--muted); width: 42px; flex-shrink: 0; }
-  .mc-history-time { font-family: var(--mono); font-weight: 600; flex: 1; }
+  .mc-history-main {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .mc-history-trial { color: var(--muted); width: 30px; flex-shrink: 0; }
+  .mc-history-time { font-family: var(--mono); font-weight: 600; min-width: 78px; }
   .mc-history-time.mc-is-best { color: var(--yellow); }
+  .mc-history-time.mc-is-dnf { color: var(--red); }
+  .mc-penalty-suffix { color: var(--muted); font-size: 11px; margin-left: 2px; }
+
+  .mc-penalty-group { display: flex; gap: 3px; margin-left: auto; }
+  .mc-pen-btn {
+    background: var(--bg); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 6px; font-size: 10.5px; font-weight: 700; padding: 3px 6px; cursor: pointer;
+    font-family: var(--body); letter-spacing: 0.03em;
+  }
+  .mc-pen-btn.active[data-pen="none"] { background: var(--green); color: #06180f; border-color: var(--green); }
+  .mc-pen-btn.active[data-pen="+2"] { background: var(--orange); color: #2a1400; border-color: var(--orange); }
+  .mc-pen-btn.active[data-pen="DNF"] { background: var(--red); color: white; border-color: var(--red); }
+
+  .mc-icon-btn {
+    background: transparent; border: none; color: var(--muted); font-size: 14px; cursor: pointer;
+    padding: 3px 6px; border-radius: 6px; line-height: 1;
+  }
+  .mc-icon-btn:hover { color: var(--blue); background: rgba(47,107,255,0.12); }
   .mc-del-btn {
-    background: transparent;
-    border: none;
-    color: var(--muted);
-    font-size: 16px;
-    cursor: pointer;
-    padding: 2px 8px;
-    border-radius: 6px;
-    line-height: 1;
+    background: transparent; border: none; color: var(--muted); font-size: 15px; cursor: pointer;
+    padding: 3px 6px; border-radius: 6px; line-height: 1;
   }
   .mc-del-btn:hover { color: var(--red); background: rgba(229,41,63,0.12); }
+
+  .mc-history-note {
+    margin-top: 6px; font-size: 12px; color: var(--muted); font-style: italic;
+  }
+  .mc-history-scramble {
+    margin-top: 4px;
+  }
+  .mc-history-scramble summary {
+    font-size: 11px; color: var(--muted); cursor: pointer; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .mc-history-scramble-text {
+    font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin-top: 4px; word-spacing: 3px;
+  }
+
+  .mc-inline-edit { display: flex; gap: 6px; align-items: center; }
+  .mc-inline-edit input {
+    width: 50px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-family: var(--mono); font-size: 13px; padding: 4px; text-align: center;
+  }
+  .mc-inline-edit input:focus { outline: none; border-color: var(--blue); }
+  .mc-inline-save, .mc-inline-cancel {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 4px 8px; font-size: 12px; cursor: pointer;
+  }
+  .mc-inline-save:hover { border-color: var(--green); color: var(--green); }
+  .mc-inline-cancel:hover { border-color: var(--red); color: var(--red); }
+
+  .mc-note-edit { display: flex; gap: 6px; margin-top: 6px; }
+  .mc-note-edit input {
+    flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-family: var(--body); font-size: 12.5px; padding: 6px 8px;
+  }
+  .mc-note-edit input:focus { outline: none; border-color: var(--blue); }
 
   .mc-chart-svg { width: 100%; height: auto; display: block; }
 </style>
@@ -408,12 +377,33 @@
     <div class="mc-auth-msg" id="mc-auth-msg"></div>
   </div>
 
-  <!-- Main app (shown once signed in) -->
+  <!-- Main app -->
   <div id="mc-app" style="display:none;">
+
+    <div class="mc-card mc-scramble-card">
+      <div>
+        <div class="mc-scramble-label">Scramble</div>
+        <div class="mc-scramble-text" id="mc-scramble-text">—</div>
+      </div>
+      <button class="mc-scramble-refresh" id="mc-scramble-refresh">New scramble</button>
+    </div>
+
+    <div class="mc-card" style="margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; padding:12px 18px;">
+      <div>
+        <div style="font-size:13.5px; font-weight:600;">Use 15s inspection</div>
+        <div style="font-size:11.5px; color:var(--muted); margin-top:2px;">Off: tap start, tap stop — saved right away. On: WCA-style inspection before each solve.</div>
+      </div>
+      <label style="position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0;">
+        <input type="checkbox" id="mc-inspection-toggle" style="opacity:0; width:0; height:0;">
+        <span id="mc-inspection-track" style="position:absolute; inset:0; background:var(--panel-2); border:1px solid var(--border); border-radius:999px; cursor:pointer; transition:background 0.15s ease;"></span>
+        <span id="mc-inspection-knob" style="position:absolute; top:3px; left:3px; width:16px; height:16px; background:var(--muted); border-radius:50%; transition:transform 0.15s ease;"></span>
+      </label>
+    </div>
+
     <div class="mc-timer-wrap">
       <div class="mc-timer" id="mc-timer">
         <div class="mc-timer-digits" id="mc-timer-digits">0:00.000</div>
-        <div class="mc-timer-hint" id="mc-timer-hint">Tap or press space to start</div>
+        <div class="mc-timer-hint" id="mc-timer-hint">Tap or press space to start inspection</div>
       </div>
     </div>
 
@@ -479,12 +469,21 @@
     ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
     : null;
 
-  let solves = []; // { id, ms, ts }
-  let running = false;
-  let startTs = 0;
-  let tickHandle = null;
-  let authMode = 'signin'; // or 'signup'
+  let solves = []; // { id, ms, ts, scramble, penalty, note }
   let currentUser = null;
+  let currentScramble = '';
+
+  // Timer state machine: 'idle' -> 'inspecting' -> 'running' -> 'idle'
+  let timerState = 'idle';
+  let pendingPenalty = 'none';
+  let useInspection = false;
+  let inspectionStart = 0;
+  let inspectionHandle = null;
+  let solveStart = 0;
+  let solveHandle = null;
+
+  let editingTimeId = null;
+  let editingNoteId = null;
 
   const timerEl = document.getElementById('mc-timer');
   const digitsEl = document.getElementById('mc-timer-digits');
@@ -498,6 +497,8 @@
   const inMin = document.getElementById('mc-in-min');
   const inSec = document.getElementById('mc-in-sec');
   const inMs = document.getElementById('mc-in-ms');
+  const scrambleTextEl = document.getElementById('mc-scramble-text');
+  const scrambleRefreshBtn = document.getElementById('mc-scramble-refresh');
 
   const authScreen = document.getElementById('mc-auth-screen');
   const appScreen = document.getElementById('mc-app');
@@ -521,7 +522,36 @@
     return minutes + ':' + String(seconds).padStart(2, '0') + '.' + String(millis).padStart(3, '0');
   }
 
+  // ---------- Scramble ----------
+
+  const FACES = ['U', 'D', 'L', 'R', 'F', 'B'];
+  const AXIS = { U: 'UD', D: 'UD', L: 'LR', R: 'LR', F: 'FB', B: 'FB' };
+  const MODS = ['', "'", '2'];
+
+  function generateScramble(length) {
+    length = length || 20;
+    const seq = [];
+    let lastAxis = null;
+    for (let i = 0; i < length; i++) {
+      let face;
+      do { face = FACES[Math.floor(Math.random() * FACES.length)]; } while (AXIS[face] === lastAxis);
+      lastAxis = AXIS[face];
+      const mod = MODS[Math.floor(Math.random() * MODS.length)];
+      seq.push(face + mod);
+    }
+    return seq.join(' ');
+  }
+
+  function newScramble() {
+    currentScramble = generateScramble();
+    scrambleTextEl.textContent = currentScramble;
+  }
+
+  scrambleRefreshBtn.addEventListener('click', newScramble);
+
   // ---------- Auth ----------
+
+  let authMode = 'signin';
 
   function setAuthMode(mode) {
     authMode = mode;
@@ -560,9 +590,7 @@
       if (authMode === 'signup') {
         const { data, error } = await sb.auth.signUp({ email, password });
         if (error) throw error;
-        if (data.session) {
-          // Email confirmation is off — signed in immediately.
-        } else {
+        if (!data.session) {
           authMsg.textContent = 'Check your email to confirm your account, then sign in.';
           setAuthMode('signin');
         }
@@ -582,9 +610,7 @@
     el.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAuthSubmit(); });
   });
 
-  signoutBtn.addEventListener('click', async () => {
-    if (sb) await sb.auth.signOut();
-  });
+  signoutBtn.addEventListener('click', async () => { if (sb) await sb.auth.signOut(); });
 
   function showAuthScreen() {
     authScreen.style.display = 'block';
@@ -599,7 +625,7 @@
     accountEmail.textContent = user.email;
   }
 
-  // ---------- Data (Supabase-backed) ----------
+  // ---------- Data ----------
 
   async function fetchSolves() {
     if (!sb || !currentUser) { solves = []; return; }
@@ -609,12 +635,21 @@
       .eq('user_id', currentUser.id)
       .order('created_at', { ascending: true });
     if (error) { console.error('Could not load solves', error); solves = []; return; }
-    solves = data.map(r => ({ id: r.id, ms: r.ms, ts: new Date(r.created_at).getTime() }));
+    solves = data.map(r => ({
+      id: r.id,
+      ms: r.ms,
+      ts: new Date(r.created_at).getTime(),
+      scramble: r.scramble || '',
+      penalty: r.penalty || 'none',
+      note: r.note || ''
+    }));
   }
 
-  async function addSolve(ms, flashPb) {
+  async function addSolve(ms, penalty, scramble, flashPb) {
     if (!sb || !currentUser) return;
-    const { error } = await sb.from('solves').insert({ user_id: currentUser.id, ms });
+    const { error } = await sb.from('solves').insert({
+      user_id: currentUser.id, ms, penalty: penalty || 'none', scramble: scramble || '', note: ''
+    });
     if (error) { console.error('Could not save time', error); return; }
     await fetchSolves();
     render();
@@ -636,23 +671,50 @@
     render();
   }
 
-  // ---------- Rendering ----------
+  async function updateSolve(id, fields) {
+    if (!sb) return;
+    const { error } = await sb.from('solves').update(fields).eq('id', id);
+    if (error) { console.error('Could not update time', error); return; }
+    await fetchSolves();
+    render();
+  }
+
+  // ---------- Stats / effective time ----------
+
+  function effectiveMs(solve) {
+    if (solve.penalty === 'DNF') return null;
+    if (solve.penalty === '+2') return solve.ms + 2000;
+    return solve.ms;
+  }
 
   function computeStats() {
-    if (solves.length === 0) return { best: null, avg: null, latest: null, bestIdx: -1 };
-    let bestMs = Infinity, bestIdx = -1, sum = 0;
+    let bestMs = Infinity, bestIdx = -1, sum = 0, count = 0;
     solves.forEach((s, i) => {
-      sum += s.ms;
-      if (s.ms < bestMs) { bestMs = s.ms; bestIdx = i; }
+      const v = effectiveMs(s);
+      if (v === null) return;
+      sum += v;
+      count++;
+      if (v < bestMs) { bestMs = v; bestIdx = i; }
     });
-    return { best: bestMs, avg: sum / solves.length, latest: solves[solves.length - 1].ms, bestIdx };
+    const latestSolve = solves[solves.length - 1];
+    const latest = latestSolve ? (latestSolve.penalty === 'DNF' ? null : effectiveMs(latestSolve)) : null;
+    const latestIsDnf = latestSolve ? latestSolve.penalty === 'DNF' : false;
+    return {
+      best: count > 0 ? bestMs : null,
+      avg: count > 0 ? sum / count : null,
+      latest,
+      latestIsDnf,
+      bestIdx
+    };
   }
 
   function renderStats(stats) {
-    statBest.textContent = formatTime(stats.best);
-    statAvg.textContent = formatTime(stats.avg);
-    statLatest.textContent = formatTime(stats.latest);
+    statBest.textContent = stats.best !== null ? formatTime(stats.best) : '--:--.---';
+    statAvg.textContent = stats.avg !== null ? formatTime(stats.avg) : '--:--.---';
+    statLatest.textContent = stats.latestIsDnf ? 'DNF' : (stats.latest !== null ? formatTime(stats.latest) : '--:--.---');
   }
+
+  // ---------- Chart ----------
 
   function axisLabel(ms) {
     const totalSec = ms / 1000;
@@ -667,25 +729,32 @@
       chartContainer.innerHTML = '<div class="mc-empty">No solves yet — add your first time to see your progress here.</div>';
       return;
     }
+
+    const effTimes = solves.map(s => effectiveMs(s));
+    const validTimes = effTimes.filter(v => v !== null);
+
+    if (validTimes.length === 0) {
+      chartContainer.innerHTML = '<div class="mc-empty">All logged trials are DNF so far — solve one to see your progress.</div>';
+      return;
+    }
+
     const W = 640, H = 260;
     const padL = 46, padR = 14, padT = 16, padB = 30;
     const plotW = W - padL - padR;
     const plotH = H - padT - padB;
 
-    const times = solves.map(s => s.ms);
-    let yMin = Math.min(...times);
-    let yMax = Math.max(...times);
+    let yMin = Math.min(...validTimes);
+    let yMax = Math.max(...validTimes);
     if (yMin === yMax) { yMin -= 1000; yMax += 1000; }
     const span = yMax - yMin;
     yMin -= span * 0.12;
     yMax += span * 0.12;
 
-    const n = times.length;
+    const n = effTimes.length;
     const xFor = (i) => n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW;
     const yFor = (v) => padT + (1 - (v - yMin) / (yMax - yMin)) * plotH;
 
-    let gridLines = '';
-    let gridLabels = '';
+    let gridLines = '', gridLabels = '';
     const ticks = 4;
     for (let t = 0; t <= ticks; t++) {
       const v = yMin + (t / ticks) * (yMax - yMin);
@@ -694,15 +763,18 @@
       gridLabels += `<text x="${padL - 8}" y="${y + 4}" text-anchor="end" font-size="10.5" fill="#8b8d9a" font-family="JetBrains Mono, monospace">${axisLabel(v)}</text>`;
     }
 
-    let pathD = '';
-    times.forEach((v, i) => {
-      const x = xFor(i), y = yFor(v);
-      pathD += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
-    });
-
-    let points = '';
-    times.forEach((v, i) => {
-      const x = xFor(i), y = yFor(v);
+    let pathD = '', drawing = false, points = '', dnfMarkers = '';
+    effTimes.forEach((v, i) => {
+      const x = xFor(i);
+      if (v === null) {
+        drawing = false;
+        const y = H - padB + 10;
+        dnfMarkers += `<text x="${x}" y="${y}" text-anchor="middle" font-size="11" fill="#e5293f" font-family="JetBrains Mono, monospace" font-weight="700">DNF</text>`;
+        return;
+      }
+      const y = yFor(v);
+      pathD += (drawing ? 'L' : 'M') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+      drawing = true;
       const isBest = i === stats.bestIdx;
       const isLatest = i === n - 1;
       const r = isBest ? 5.5 : 3.4;
@@ -711,7 +783,7 @@
     });
 
     let xLabels = '';
-    const labelIdxs = n <= 6 ? times.map((_, i) => i) : [0, Math.floor((n - 1) / 2), n - 1];
+    const labelIdxs = n <= 6 ? effTimes.map((_, i) => i) : [0, Math.floor((n - 1) / 2), n - 1];
     labelIdxs.forEach(i => {
       const x = xFor(i);
       xLabels += `<text x="${x}" y="${H - 8}" text-anchor="middle" font-size="10.5" fill="#8b8d9a" font-family="Inter, sans-serif">#${i + 1}</text>`;
@@ -728,6 +800,8 @@
     `;
   }
 
+  // ---------- History ----------
+
   function renderHistory(stats) {
     if (solves.length === 0) {
       historyList.innerHTML = '<div class="mc-empty">Nothing here yet.</div>';
@@ -736,12 +810,66 @@
     let html = '';
     for (let i = solves.length - 1; i >= 0; i--) {
       const s = solves[i];
-      const isBest = i === stats.bestIdx;
+      const isBest = i === stats.bestIdx && s.penalty !== 'DNF';
+      const isDnf = s.penalty === 'DNF';
+
+      let timeHtml;
+      if (editingTimeId === s.id) {
+        const total = Math.max(0, Math.round(s.ms));
+        const em = Math.floor(total / 60000);
+        const es = Math.floor((total % 60000) / 1000);
+        const ems = total % 1000;
+        timeHtml = `
+          <div class="mc-inline-edit">
+            <input type="number" min="0" value="${em}" data-edit-part="min" data-id="${s.id}">
+            <input type="number" min="0" max="59" value="${es}" data-edit-part="sec" data-id="${s.id}">
+            <input type="number" min="0" max="999" value="${ems}" data-edit-part="ms" data-id="${s.id}">
+            <button class="mc-inline-save" data-save-id="${s.id}">✓</button>
+            <button class="mc-inline-cancel" data-cancel-edit="1">✕</button>
+          </div>
+        `;
+      } else {
+        const suffix = s.penalty === '+2' ? '<span class="mc-penalty-suffix">+2</span>' : '';
+        timeHtml = isDnf
+          ? `<span class="mc-history-time mc-is-dnf">DNF</span>`
+          : `<span class="mc-history-time ${isBest ? 'mc-is-best' : ''}">${formatTime(effectiveMs(s))}${suffix}</span>`;
+      }
+
+      const penaltyGroup = `
+        <div class="mc-penalty-group">
+          <button class="mc-pen-btn ${s.penalty === 'none' ? 'active' : ''}" data-pen="none" data-id="${s.id}">OK</button>
+          <button class="mc-pen-btn ${s.penalty === '+2' ? 'active' : ''}" data-pen="+2" data-id="${s.id}">+2</button>
+          <button class="mc-pen-btn ${s.penalty === 'DNF' ? 'active' : ''}" data-pen="DNF" data-id="${s.id}">DNF</button>
+        </div>
+      `;
+
+      const noteBlock = editingNoteId === s.id
+        ? `<div class="mc-note-edit">
+             <input type="text" maxlength="140" placeholder="Add a note…" value="${(s.note || '').replace(/"/g, '&quot;')}" data-note-input="${s.id}">
+             <button class="mc-inline-save" data-save-note="${s.id}">✓</button>
+             <button class="mc-inline-cancel" data-cancel-note="1">✕</button>
+           </div>`
+        : (s.note ? `<div class="mc-history-note">${s.note.replace(/</g, '&lt;')}</div>` : '');
+
+      const scrambleBlock = s.scramble
+        ? `<details class="mc-history-scramble">
+             <summary>Scramble</summary>
+             <div class="mc-history-scramble-text">${s.scramble}</div>
+           </details>`
+        : '';
+
       html += `
         <div class="mc-history-row">
-          <span class="mc-history-trial">#${i + 1}</span>
-          <span class="mc-history-time ${isBest ? 'mc-is-best' : ''}">${formatTime(s.ms)}</span>
-          <button class="mc-del-btn" data-id="${s.id}" title="Delete this time" aria-label="Delete this time">✕</button>
+          <div class="mc-history-main">
+            <span class="mc-history-trial">#${i + 1}</span>
+            ${timeHtml}
+            ${penaltyGroup}
+            <button class="mc-icon-btn" data-edit-time="${s.id}" title="Edit time">✎</button>
+            <button class="mc-icon-btn" data-edit-note="${s.id}" title="Add note">🗒</button>
+            <button class="mc-del-btn" data-delete="${s.id}" title="Delete this time">✕</button>
+          </div>
+          ${noteBlock}
+          ${scrambleBlock}
         </div>
       `;
     }
@@ -755,45 +883,133 @@
     renderHistory(stats);
   }
 
-  historyList.addEventListener('click', (e) => {
-    const btn = e.target.closest('.mc-del-btn');
-    if (btn) deleteSolve(btn.dataset.id);
+  historyList.addEventListener('click', async (e) => {
+    const delBtn = e.target.closest('[data-delete]');
+    if (delBtn) { deleteSolve(delBtn.dataset.delete); return; }
+
+    const penBtn = e.target.closest('[data-pen]');
+    if (penBtn) { updateSolve(penBtn.dataset.id, { penalty: penBtn.dataset.pen }); return; }
+
+    const editBtn = e.target.closest('[data-edit-time]');
+    if (editBtn) { editingTimeId = editBtn.dataset.editTime; editingNoteId = null; render(); return; }
+
+    const cancelEdit = e.target.closest('[data-cancel-edit]');
+    if (cancelEdit) { editingTimeId = null; render(); return; }
+
+    const saveBtn = e.target.closest('[data-save-id]');
+    if (saveBtn) {
+      const id = saveBtn.dataset.saveId;
+      const wrap = saveBtn.closest('.mc-inline-edit');
+      const min = parseInt(wrap.querySelector('[data-edit-part="min"]').value, 10) || 0;
+      const sec = parseInt(wrap.querySelector('[data-edit-part="sec"]').value, 10) || 0;
+      const ms = parseInt(wrap.querySelector('[data-edit-part="ms"]').value, 10) || 0;
+      const total = min * 60000 + sec * 1000 + ms;
+      editingTimeId = null;
+      if (total > 0) await updateSolve(id, { ms: total }); else render();
+      return;
+    }
+
+    const noteEditBtn = e.target.closest('[data-edit-note]');
+    if (noteEditBtn) { editingNoteId = noteEditBtn.dataset.editNote; editingTimeId = null; render(); return; }
+
+    const cancelNote = e.target.closest('[data-cancel-note]');
+    if (cancelNote) { editingNoteId = null; render(); return; }
+
+    const saveNoteBtn = e.target.closest('[data-save-note]');
+    if (saveNoteBtn) {
+      const id = saveNoteBtn.dataset.saveNote;
+      const input = historyList.querySelector(`[data-note-input="${id}"]`);
+      const note = input ? input.value.trim() : '';
+      editingNoteId = null;
+      await updateSolve(id, { note });
+      return;
+    }
   });
 
-  // ---------- Stopwatch ----------
+  historyList.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      if (e.target.matches('[data-edit-part]')) {
+        const id = e.target.dataset.id;
+        const saveBtn = historyList.querySelector(`[data-save-id="${id}"]`);
+        if (saveBtn) saveBtn.click();
+      } else if (e.target.matches('[data-note-input]')) {
+        const id = e.target.dataset.noteInput;
+        const saveBtn = historyList.querySelector(`[data-save-note="${id}"]`);
+        if (saveBtn) saveBtn.click();
+      }
+    }
+  });
 
-  function tick() {
-    const elapsed = performance.now() - startTs;
-    digitsEl.textContent = formatTime(elapsed);
+  // ---------- Timer state machine ----------
+
+  function startInspection() {
+    timerState = 'inspecting';
+    inspectionStart = performance.now();
+    timerEl.classList.remove('running');
+    timerEl.classList.add('inspecting');
+    hintEl.textContent = 'Tap or press space when ready to solve';
+    inspectionHandle = setInterval(inspectionTick, 30);
+    inspectionTick();
   }
 
-  function startTimer() {
-    running = true;
-    startTs = performance.now();
+  function inspectionTick() {
+    const elapsedSec = (performance.now() - inspectionStart) / 1000;
+    const remaining = 15 - elapsedSec;
+    if (remaining >= 0) {
+      digitsEl.textContent = Math.ceil(remaining).toString();
+    } else {
+      digitsEl.textContent = '+' + (-remaining).toFixed(1) + 's';
+    }
+  }
+
+  function endInspectionAndStart() {
+    const elapsedSec = (performance.now() - inspectionStart) / 1000;
+    if (elapsedSec <= 15) pendingPenalty = 'none';
+    else if (elapsedSec <= 17) pendingPenalty = '+2';
+    else pendingPenalty = 'DNF';
+    clearInterval(inspectionHandle);
+    startSolveTimer();
+  }
+
+  function startSolveTimer() {
+    timerState = 'running';
+    timerEl.classList.remove('inspecting');
     timerEl.classList.add('running');
     hintEl.textContent = 'Tap or press space to stop';
-    tickHandle = setInterval(tick, 30);
+    solveStart = performance.now();
+    solveHandle = setInterval(solveTick, 30);
   }
 
-  function stopTimer() {
-    running = false;
-    clearInterval(tickHandle);
-    const elapsed = performance.now() - startTs;
-    timerEl.classList.remove('running');
-    hintEl.textContent = 'Tap or press space to start';
+  function solveTick() {
+    const elapsed = performance.now() - solveStart;
     digitsEl.textContent = formatTime(elapsed);
-    addSolve(elapsed, true);
   }
 
-  function toggleTimer() {
-    if (running) stopTimer(); else startTimer();
+  async function stopSolveTimer() {
+    clearInterval(solveHandle);
+    const elapsed = performance.now() - solveStart;
+    timerState = 'idle';
+    timerEl.classList.remove('running', 'inspecting');
+    hintEl.textContent = 'Tap or press space to start inspection';
+    digitsEl.textContent = formatTime(elapsed);
+    const penaltyForThisSolve = pendingPenalty;
+    const scrambleForThisSolve = currentScramble;
+    pendingPenalty = 'none';
+    await addSolve(elapsed, penaltyForThisSolve, scrambleForThisSolve, true);
+    newScramble();
   }
 
-  timerEl.addEventListener('click', toggleTimer);
+  function handleTimerPress() {
+    if (timerState === 'idle') startInspection();
+    else if (timerState === 'inspecting') endInspectionAndStart();
+    else if (timerState === 'running') stopSolveTimer();
+  }
+
+  timerEl.addEventListener('click', handleTimerPress);
   document.addEventListener('keydown', (e) => {
     if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') {
       e.preventDefault();
-      toggleTimer();
+      handleTimerPress();
     }
   });
 
@@ -814,7 +1030,8 @@
       shakeInvalid(inMin); shakeInvalid(inSec); shakeInvalid(inMs);
       return;
     }
-    await addSolve(total, true);
+    await addSolve(total, 'none', currentScramble, true);
+    newScramble();
     inMin.value = ''; inSec.value = ''; inMs.value = '';
     inMin.focus();
   }
@@ -825,6 +1042,8 @@
   });
 
   // ---------- Init ----------
+
+  newScramble();
 
   if (!sb) {
     authError.textContent = 'Backend is not configured yet — add your Supabase URL and key in the code (see comment near the top of the script).';
