@@ -34,6 +34,8 @@
     --green: #12a454;
     --orange: #ff8a3d;
     --white-sq: #eceae0;
+    --cyan: #17c3b2;
+    --purple: #8b5cf6;
     --mono: 'JetBrains Mono', ui-monospace, monospace;
     --display: 'Sora', 'Segoe UI', sans-serif;
     --body: 'Inter', 'Segoe UI', sans-serif;
@@ -252,8 +254,52 @@
   .mc-stat.best { border-left-color: var(--yellow); }
   .mc-stat.avg { border-left-color: var(--blue); }
   .mc-stat.latest { border-left-color: var(--green); }
+  .mc-stat.today { border-left-color: var(--cyan); }
+  .mc-stat.week { border-left-color: var(--purple); }
   .mc-stat-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
   .mc-stat-value { font-family: var(--mono); font-weight: 700; font-size: 20px; }
+  .mc-stat-value.mc-stat-empty { font-size: 13px; color: var(--muted); font-weight: 500; }
+
+  .mc-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .mc-filter-bar input[type="text"] {
+    flex: 1;
+    min-width: 120px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--body);
+    font-size: 12.5px;
+    padding: 7px 9px;
+  }
+  .mc-filter-bar input[type="date"] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--body);
+    font-size: 12px;
+    padding: 6px 7px;
+    flex: 1;
+    min-width: 118px;
+  }
+  .mc-filter-bar input:focus { outline: none; border-color: var(--blue); }
+  .mc-filter-clear {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .mc-filter-clear:hover { border-color: var(--red); color: var(--red); }
 
   /* Manual entry */
   .mc-entry { margin-top: 16px; }
@@ -461,6 +507,14 @@
               <span class="mc-stat-label">Latest</span>
               <span class="mc-stat-value" id="mc-stat-latest">--:--.---</span>
             </div>
+            <div class="mc-stat today">
+              <span class="mc-stat-label">Today's Avg</span>
+              <span class="mc-stat-value" id="mc-stat-today">--:--.---</span>
+            </div>
+            <div class="mc-stat week">
+              <span class="mc-stat-label">This Week's Avg</span>
+              <span class="mc-stat-value" id="mc-stat-week">--:--.---</span>
+            </div>
           </div>
 
           <div class="mc-entry">
@@ -484,6 +538,12 @@
 
         <div class="mc-card mc-history-card">
           <h2>History</h2>
+          <div class="mc-filter-bar">
+            <input type="text" id="mc-filter-note" placeholder="Search notes…">
+            <input type="date" id="mc-filter-from" title="From date">
+            <input type="date" id="mc-filter-to" title="To date">
+            <button class="mc-filter-clear" id="mc-filter-clear">Clear</button>
+          </div>
           <div class="mc-history-list" id="mc-history-list"></div>
         </div>
       </div>
@@ -526,6 +586,12 @@
   const hintEl = document.getElementById('mc-timer-hint');
   const chartContainer = document.getElementById('mc-chart-container');
   const historyList = document.getElementById('mc-history-list');
+  const statToday = document.getElementById('mc-stat-today');
+  const statWeek = document.getElementById('mc-stat-week');
+  const filterNoteInput = document.getElementById('mc-filter-note');
+  const filterFromInput = document.getElementById('mc-filter-from');
+  const filterToInput = document.getElementById('mc-filter-to');
+  const filterClearBtn = document.getElementById('mc-filter-clear');
   const statBest = document.getElementById('mc-stat-best');
   const statAvg = document.getElementById('mc-stat-avg');
   const statLatest = document.getElementById('mc-stat-latest');
@@ -781,6 +847,43 @@
     statLatest.textContent = stats.latest !== null ? formatTime(stats.latest) : '--:--.---';
   }
 
+  function computeSessionStats() {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const day = now.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday);
+
+    let todaySum = 0, todayCount = 0, weekSum = 0, weekCount = 0;
+    solves.forEach(s => {
+      const v = effectiveMs(s);
+      if (s.ts >= startOfToday.getTime()) { todaySum += v; todayCount++; }
+      if (s.ts >= startOfWeek.getTime()) { weekSum += v; weekCount++; }
+    });
+    return {
+      todayAvg: todayCount > 0 ? todaySum / todayCount : null,
+      weekAvg: weekCount > 0 ? weekSum / weekCount : null
+    };
+  }
+
+  function renderSessionStats() {
+    const s = computeSessionStats();
+    if (s.todayAvg !== null) {
+      statToday.textContent = formatTime(s.todayAvg);
+      statToday.classList.remove('mc-stat-empty');
+    } else {
+      statToday.textContent = 'No solves yet';
+      statToday.classList.add('mc-stat-empty');
+    }
+    if (s.weekAvg !== null) {
+      statWeek.textContent = formatTime(s.weekAvg);
+      statWeek.classList.remove('mc-stat-empty');
+    } else {
+      statWeek.textContent = 'No solves yet';
+      statWeek.classList.add('mc-stat-empty');
+    }
+  }
+
   // ---------- Chart ----------
 
   function axisLabel(ms) {
@@ -869,13 +972,41 @@
 
   // ---------- History ----------
 
+  function matchesFilters(s) {
+    const noteQuery = filterNoteInput.value.trim().toLowerCase();
+    if (noteQuery && !(s.note || '').toLowerCase().includes(noteQuery)) return false;
+    const fromVal = filterFromInput.value;
+    const toVal = filterToInput.value;
+    if (fromVal) {
+      const fromTs = new Date(fromVal + 'T00:00:00').getTime();
+      if (s.ts < fromTs) return false;
+    }
+    if (toVal) {
+      const toTs = new Date(toVal + 'T23:59:59.999').getTime();
+      if (s.ts > toTs) return false;
+    }
+    return true;
+  }
+
   function renderHistory(stats) {
     if (solves.length === 0) {
       historyList.innerHTML = '<div class="mc-empty">Nothing here yet.</div>';
       return;
     }
+
+    const indices = [];
+    for (let i = 0; i < solves.length; i++) {
+      if (matchesFilters(solves[i])) indices.push(i);
+    }
+
+    if (indices.length === 0) {
+      historyList.innerHTML = '<div class="mc-empty">No solves match your filters.</div>';
+      return;
+    }
+
     let html = '';
-    for (let i = solves.length - 1; i >= 0; i--) {
+    for (let k = indices.length - 1; k >= 0; k--) {
+      const i = indices[k];
       const s = solves[i];
       const isBest = i === stats.bestIdx;
 
@@ -885,11 +1016,15 @@
         const em = Math.floor(total / 60000);
         const es = Math.floor((total % 60000) / 1000);
         const ems = total % 1000;
+        const overtimeSec = ((s.overtimeMs || 0) / 1000).toFixed(1);
         timeHtml = `
           <div class="mc-inline-edit">
             <input type="number" min="0" value="${em}" data-edit-part="min" data-id="${s.id}">
             <input type="number" min="0" max="59" value="${es}" data-edit-part="sec" data-id="${s.id}">
             <input type="number" min="0" max="999" value="${ems}" data-edit-part="ms" data-id="${s.id}">
+            <span style="color:var(--muted); font-size:11px;">+</span>
+            <input type="number" min="0" step="0.1" value="${overtimeSec}" data-edit-part="overtime" data-id="${s.id}" style="width:54px;" title="Overtime seconds">
+            <span style="color:var(--muted); font-size:11px;">s ot</span>
             <button class="mc-inline-save" data-save-id="${s.id}">✓</button>
             <button class="mc-inline-cancel" data-cancel-edit="1">✕</button>
           </div>
@@ -942,9 +1077,20 @@
   function render() {
     const stats = computeStats();
     renderStats(stats);
+    renderSessionStats();
     buildChart(stats);
     renderHistory(stats);
   }
+
+  [filterNoteInput, filterFromInput, filterToInput].forEach(el => {
+    el.addEventListener('input', () => renderHistory(computeStats()));
+  });
+  filterClearBtn.addEventListener('click', () => {
+    filterNoteInput.value = '';
+    filterFromInput.value = '';
+    filterToInput.value = '';
+    renderHistory(computeStats());
+  });
 
   historyList.addEventListener('click', async (e) => {
     const delBtn = e.target.closest('[data-delete]');
@@ -963,9 +1109,12 @@
       const min = parseInt(wrap.querySelector('[data-edit-part="min"]').value, 10) || 0;
       const sec = parseInt(wrap.querySelector('[data-edit-part="sec"]').value, 10) || 0;
       const ms = parseInt(wrap.querySelector('[data-edit-part="ms"]').value, 10) || 0;
+      const overtimeInput = wrap.querySelector('[data-edit-part="overtime"]');
+      const overtimeSec = overtimeInput ? (parseFloat(overtimeInput.value) || 0) : 0;
       const total = min * 60000 + sec * 1000 + ms;
+      const overtimeMs = Math.round(overtimeSec * 1000);
       editingTimeId = null;
-      if (total > 0) await updateSolve(id, { ms: total }); else render();
+      if (total > 0) await updateSolve(id, { ms: total, overtime_ms: overtimeMs }); else render();
       return;
     }
 
