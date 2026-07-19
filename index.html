@@ -391,6 +391,55 @@
 
   /* History */
   .mc-history-card { margin-top: 18px; }
+
+  .mc-community-card { margin-top: 18px; }
+  .mc-community-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .mc-community-tab {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 8px; padding: 8px 16px; font-size: 13.5px; font-weight: 600; cursor: pointer;
+    font-family: var(--body);
+  }
+  .mc-community-tab.active { background: var(--blue); color: white; border-color: var(--blue); }
+  .mc-community-subheading {
+    font-family: var(--display); font-size: 12.5px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.05em; margin: 18px 0 8px;
+  }
+  .mc-friend-search-row { display: flex; gap: 8px; }
+  .mc-friend-search-row input {
+    flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: var(--body); font-size: 13.5px; padding: 8px 10px;
+  }
+  .mc-friend-search-row input:focus { outline: none; border-color: var(--blue); }
+
+  .mc-person-row {
+    display: flex; align-items: center; gap: 10px; background: var(--panel-2);
+    border-radius: 10px; padding: 10px 12px; margin-top: 8px; flex-wrap: wrap;
+  }
+  .mc-person-name { font-weight: 600; font-size: 13.5px; }
+  .mc-person-stats {
+    display: flex; gap: 10px; font-family: var(--mono); font-size: 11.5px; color: var(--muted); flex-wrap: wrap;
+  }
+  .mc-person-actions { margin-left: auto; display: flex; gap: 6px; }
+  .mc-person-btn {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    border-radius: 7px; padding: 5px 10px; font-size: 12px; cursor: pointer; font-family: var(--body);
+  }
+  .mc-person-btn.accept:hover { border-color: var(--green); color: var(--green); }
+  .mc-person-btn.decline:hover, .mc-person-btn.remove:hover { border-color: var(--red); color: var(--red); }
+  .mc-person-btn.add:hover { border-color: var(--blue); color: var(--blue); }
+
+  .mc-leaderboard-select {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: var(--body); font-size: 13.5px; padding: 8px 10px; margin-bottom: 12px;
+  }
+  .mc-leaderboard-row {
+    display: flex; align-items: center; gap: 12px; background: var(--panel-2);
+    border-radius: 10px; padding: 9px 12px; margin-top: 6px;
+  }
+  .mc-leaderboard-row.mc-is-me { border: 1px solid var(--blue); }
+  .mc-leaderboard-rank { font-family: var(--mono); font-weight: 700; color: var(--muted); width: 28px; }
+  .mc-leaderboard-name { flex: 1; font-size: 13.5px; font-weight: 600; }
+  .mc-leaderboard-value { font-family: var(--mono); font-weight: 700; font-size: 14px; color: var(--yellow); }
   .mc-history-list { max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
   .mc-history-row {
     background: var(--panel-2); border-radius: 10px; padding: 9px 10px; font-size: 13.5px;
@@ -491,6 +540,7 @@
     </div>
     <div class="mc-account" id="mc-account" style="display:none;">
       <span id="mc-account-email"></span>
+      <button class="mc-icon-btn" id="mc-account-edit-name" title="Change display name">✎</button>
       <button class="mc-signout-btn" id="mc-signout-btn">Sign out</button>
     </div>
   </div>
@@ -498,6 +548,10 @@
   <!-- Auth screen -->
   <div id="mc-auth-screen" class="mc-card mc-auth-wrap">
     <h2 id="mc-auth-title">Sign in to MattCubing</h2>
+    <div class="mc-auth-field" id="mc-auth-name-field" style="display:none;">
+      <label for="mc-auth-name">Display name</label>
+      <input type="text" id="mc-auth-name" placeholder="How friends will see you" maxlength="30" autocomplete="nickname">
+    </div>
     <div class="mc-auth-field">
       <label for="mc-auth-email">Email</label>
       <input type="email" id="mc-auth-email" placeholder="you@example.com" autocomplete="email">
@@ -510,6 +564,17 @@
     <button class="mc-btn-primary" id="mc-auth-submit">Sign in</button>
     <button class="mc-btn-secondary" id="mc-auth-toggle">Need an account? Create one</button>
     <div class="mc-auth-msg" id="mc-auth-msg"></div>
+  </div>
+
+  <!-- Shown once, only if a signed-in user somehow has no display name yet (e.g. email confirmation flows) -->
+  <div id="mc-profile-screen" class="mc-card mc-auth-wrap" style="display:none;">
+    <h2>Choose your display name</h2>
+    <div class="mc-auth-field">
+      <label for="mc-profile-name">Display name</label>
+      <input type="text" id="mc-profile-name" placeholder="How friends will see you" maxlength="30">
+    </div>
+    <div class="mc-auth-error" id="mc-profile-error"></div>
+    <button class="mc-btn-primary" id="mc-profile-submit">Continue</button>
   </div>
 
   <!-- Main app -->
@@ -685,6 +750,39 @@
         </div>
       </div>
     </div>
+
+    <div class="mc-card mc-community-card">
+      <div class="mc-community-tabs">
+        <button class="mc-community-tab active" id="mc-tab-friends" data-tab="friends">Friends</button>
+        <button class="mc-community-tab" id="mc-tab-leaderboard" data-tab="leaderboard">Leaderboard</button>
+      </div>
+
+      <div id="mc-friends-panel" class="mc-community-panel">
+        <div class="mc-friend-search-row">
+          <input type="text" id="mc-friend-search" placeholder="Search by display name…">
+          <button class="mc-scramble-refresh" id="mc-friend-search-btn">Search</button>
+        </div>
+        <div id="mc-friend-search-results"></div>
+
+        <div id="mc-friend-requests-section" style="display:none;">
+          <h3 class="mc-community-subheading">Requests</h3>
+          <div id="mc-friend-requests-list"></div>
+        </div>
+
+        <h3 class="mc-community-subheading">Your friends</h3>
+        <div id="mc-friends-list"></div>
+      </div>
+
+      <div id="mc-leaderboard-panel" class="mc-community-panel" style="display:none;">
+        <select id="mc-leaderboard-metric" class="mc-leaderboard-select">
+          <option value="best_ms">Best single</option>
+          <option value="avg_ms">Lifetime average</option>
+          <option value="today_avg_ms">Today's average</option>
+          <option value="week_avg_ms">This week's average</option>
+        </select>
+        <div id="mc-leaderboard-list"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -778,6 +876,7 @@
   const accountBar = document.getElementById('mc-account');
   const accountEmail = document.getElementById('mc-account-email');
   const signoutBtn = document.getElementById('mc-signout-btn');
+  const accountEditNameBtn = document.getElementById('mc-account-edit-name');
   const authTitle = document.getElementById('mc-auth-title');
   const authEmail = document.getElementById('mc-auth-email');
   const authPassword = document.getElementById('mc-auth-password');
@@ -785,6 +884,13 @@
   const authSubmit = document.getElementById('mc-auth-submit');
   const authToggle = document.getElementById('mc-auth-toggle');
   const authMsg = document.getElementById('mc-auth-msg');
+  const authNameField = document.getElementById('mc-auth-name-field');
+  const authName = document.getElementById('mc-auth-name');
+  const profileScreen = document.getElementById('mc-profile-screen');
+  const profileNameInput = document.getElementById('mc-profile-name');
+  const profileError = document.getElementById('mc-profile-error');
+  const profileSubmitBtn = document.getElementById('mc-profile-submit');
+  let currentDisplayName = '';
 
   function formatTime(ms) {
     if (ms === null || ms === undefined) return '--:--.---';
@@ -834,16 +940,20 @@
       authTitle.textContent = 'Create your MattCubing account';
       authSubmit.textContent = 'Create account';
       authToggle.textContent = 'Already have an account? Sign in';
+      authNameField.style.display = 'block';
     } else {
       authTitle.textContent = 'Sign in to MattCubing';
       authSubmit.textContent = 'Sign in';
       authToggle.textContent = "Need an account? Create one";
+      authNameField.style.display = 'none';
     }
   }
 
   authToggle.addEventListener('click', () => {
     setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
   });
+
+  let pendingDisplayName = '';
 
   async function handleAuthSubmit() {
     if (!sb) {
@@ -858,9 +968,14 @@
       authError.textContent = 'Enter an email and password.';
       return;
     }
+    if (authMode === 'signup' && !authName.value.trim()) {
+      authError.textContent = 'Choose a display name.';
+      return;
+    }
     authSubmit.disabled = true;
     try {
       if (authMode === 'signup') {
+        pendingDisplayName = authName.value.trim();
         const { data, error } = await sb.auth.signUp({ email, password });
         if (error) throw error;
         if (!data.session) {
@@ -885,18 +1000,83 @@
 
   signoutBtn.addEventListener('click', async () => { if (sb) await sb.auth.signOut(); });
 
+  accountEditNameBtn.addEventListener('click', async () => {
+    const newName = window.prompt('Change your display name:', currentDisplayName || '');
+    if (newName === null) return;
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === currentDisplayName) return;
+    try {
+      const { error } = await sb.from('profiles').update({ display_name: trimmed }).eq('id', currentUser.id);
+      if (error) throw error;
+      currentDisplayName = trimmed;
+      accountEmail.textContent = currentDisplayName;
+    } catch (err) {
+      console.error('Could not update display name', err);
+      window.alert('Could not update your display name. Try again.');
+    }
+  });
+
   function showAuthScreen() {
     authScreen.style.display = 'block';
+    profileScreen.style.display = 'none';
     appScreen.style.display = 'none';
     accountBar.style.display = 'none';
   }
 
   function showApp(user) {
     authScreen.style.display = 'none';
+    profileScreen.style.display = 'none';
     appScreen.style.display = 'block';
     accountBar.style.display = 'flex';
-    accountEmail.textContent = user.email;
+    accountEmail.textContent = currentDisplayName || user.email;
   }
+
+  function showProfileScreen() {
+    authScreen.style.display = 'none';
+    appScreen.style.display = 'none';
+    accountBar.style.display = 'none';
+    profileScreen.style.display = 'block';
+    profileError.textContent = '';
+    if (pendingDisplayName) profileNameInput.value = pendingDisplayName;
+  }
+
+  async function ensureProfile(user) {
+    const { data, error } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
+    if (error) { console.error('Could not check profile', error); return; }
+    if (data) {
+      currentDisplayName = data.display_name;
+      showApp(user);
+      await fetchSolves();
+      render();
+      loadCommunity();
+    } else {
+      showProfileScreen();
+    }
+  }
+
+  async function submitProfileName() {
+    const name = profileNameInput.value.trim();
+    profileError.textContent = '';
+    if (!name) { profileError.textContent = 'Enter a display name.'; return; }
+    profileSubmitBtn.disabled = true;
+    try {
+      const { error } = await sb.from('profiles').insert({ id: currentUser.id, display_name: name });
+      if (error) throw error;
+      currentDisplayName = name;
+      pendingDisplayName = '';
+      showApp(currentUser);
+      await fetchSolves();
+      render();
+      loadCommunity();
+    } catch (err) {
+      profileError.textContent = err.message || 'Could not save that name.';
+    } finally {
+      profileSubmitBtn.disabled = false;
+    }
+  }
+
+  profileSubmitBtn.addEventListener('click', submitProfileName);
+  profileNameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitProfileName(); });
 
   // ---------- Data ----------
 
@@ -1217,6 +1397,7 @@
     renderSessionStats();
     buildChart(stats);
     renderHistory(stats);
+    syncUserStats(stats);
   }
 
   [filterNoteInput, filterFromInput, filterToInput].forEach(el => {
@@ -1228,6 +1409,247 @@
     filterToInput.value = '';
     renderHistory(computeStats());
   });
+
+  // ---------- Community: shared stats, friends, leaderboard ----------
+
+  const tabFriendsBtn = document.getElementById('mc-tab-friends');
+  const tabLeaderboardBtn = document.getElementById('mc-tab-leaderboard');
+  const friendsPanel = document.getElementById('mc-friends-panel');
+  const leaderboardPanel = document.getElementById('mc-leaderboard-panel');
+  const friendSearchInput = document.getElementById('mc-friend-search');
+  const friendSearchBtn = document.getElementById('mc-friend-search-btn');
+  const friendSearchResults = document.getElementById('mc-friend-search-results');
+  const friendRequestsSection = document.getElementById('mc-friend-requests-section');
+  const friendRequestsList = document.getElementById('mc-friend-requests-list');
+  const friendsListEl = document.getElementById('mc-friends-list');
+  const leaderboardMetricSelect = document.getElementById('mc-leaderboard-metric');
+  const leaderboardListEl = document.getElementById('mc-leaderboard-list');
+
+  tabFriendsBtn.addEventListener('click', () => {
+    tabFriendsBtn.classList.add('active');
+    tabLeaderboardBtn.classList.remove('active');
+    friendsPanel.style.display = 'block';
+    leaderboardPanel.style.display = 'none';
+    loadFriendsData();
+  });
+  tabLeaderboardBtn.addEventListener('click', () => {
+    tabLeaderboardBtn.classList.add('active');
+    tabFriendsBtn.classList.remove('active');
+    leaderboardPanel.style.display = 'block';
+    friendsPanel.style.display = 'none';
+    loadLeaderboard();
+  });
+
+  async function syncUserStats(stats) {
+    if (!sb || !currentUser) return;
+    const session = computeSessionStats();
+    try {
+      await sb.from('user_stats').upsert({
+        user_id: currentUser.id,
+        best_ms: stats.best !== null ? Math.round(stats.best) : null,
+        avg_ms: stats.avg !== null ? Math.round(stats.avg) : null,
+        today_avg_ms: session.todayAvg !== null ? Math.round(session.todayAvg) : null,
+        week_avg_ms: session.weekAvg !== null ? Math.round(session.weekAvg) : null,
+        solve_count: solves.length,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+    } catch (err) {
+      console.error('Could not sync shared stats', err);
+    }
+  }
+
+  async function fetchProfilesByIds(ids) {
+    const map = {};
+    if (ids.length === 0) return map;
+    const { data, error } = await sb.from('profiles').select('id, display_name').in('id', ids);
+    if (error) { console.error('Could not load profiles', error); return map; }
+    data.forEach(p => { map[p.id] = p.display_name; });
+    return map;
+  }
+
+  async function fetchStatsByIds(ids) {
+    const map = {};
+    if (ids.length === 0) return map;
+    const { data, error } = await sb.from('user_stats').select('*').in('user_id', ids);
+    if (error) { console.error('Could not load stats', error); return map; }
+    data.forEach(s => { map[s.user_id] = s; });
+    return map;
+  }
+
+  function personStatsLine(stat) {
+    if (!stat) return 'No solves yet';
+    return `Best ${formatTime(stat.best_ms)} · Avg ${formatTime(stat.avg_ms)} · Today ${formatTime(stat.today_avg_ms)} · Week ${formatTime(stat.week_avg_ms)}`;
+  }
+
+  async function searchFriends() {
+    const query = friendSearchInput.value.trim();
+    friendSearchResults.innerHTML = '';
+    if (!query || !sb || !currentUser) return;
+    const { data, error } = await sb
+      .from('profiles')
+      .select('id, display_name')
+      .ilike('display_name', `%${query}%`)
+      .neq('id', currentUser.id)
+      .limit(10);
+    if (error) { console.error('Search failed', error); return; }
+
+    const { data: existing } = await sb
+      .from('friendships')
+      .select('*')
+      .or(`requester_id.eq.${currentUser.id},addressee_id.eq.${currentUser.id}`);
+
+    let html = '';
+    data.forEach(p => {
+      const rel = (existing || []).find(f =>
+        (f.requester_id === currentUser.id && f.addressee_id === p.id) ||
+        (f.addressee_id === currentUser.id && f.requester_id === p.id)
+      );
+      let actionHtml;
+      if (!rel) {
+        actionHtml = `<button class="mc-person-btn add" data-add-friend="${p.id}">Add friend</button>`;
+      } else if (rel.status === 'accepted') {
+        actionHtml = `<span style="font-size:12px; color:var(--green);">Already friends</span>`;
+      } else {
+        actionHtml = `<span style="font-size:12px; color:var(--muted);">Request pending</span>`;
+      }
+      html += `
+        <div class="mc-person-row">
+          <span class="mc-person-name">${p.display_name}</span>
+          <div class="mc-person-actions">${actionHtml}</div>
+        </div>
+      `;
+    });
+    friendSearchResults.innerHTML = html || '<div class="mc-empty">No one found with that name.</div>';
+  }
+
+  friendSearchBtn.addEventListener('click', searchFriends);
+  friendSearchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') searchFriends(); });
+
+  friendSearchResults.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-add-friend]');
+    if (!btn) return;
+    const targetId = btn.dataset.addFriend;
+    try {
+      const { error } = await sb.from('friendships').insert({ requester_id: currentUser.id, addressee_id: targetId, status: 'pending' });
+      if (error) throw error;
+      searchFriends();
+    } catch (err) {
+      console.error('Could not send friend request', err);
+    }
+  });
+
+  async function loadFriendsData() {
+    if (!sb || !currentUser) return;
+    const { data: rels, error } = await sb
+      .from('friendships')
+      .select('*')
+      .or(`requester_id.eq.${currentUser.id},addressee_id.eq.${currentUser.id}`);
+    if (error) { console.error('Could not load friendships', error); return; }
+
+    const incoming = rels.filter(f => f.status === 'pending' && f.addressee_id === currentUser.id);
+    const accepted = rels.filter(f => f.status === 'accepted');
+
+    const otherIds = [
+      ...incoming.map(f => f.requester_id),
+      ...accepted.map(f => f.requester_id === currentUser.id ? f.addressee_id : f.requester_id)
+    ];
+    const uniqueIds = [...new Set(otherIds)];
+    const profileMap = await fetchProfilesByIds(uniqueIds);
+    const statsMap = await fetchStatsByIds(uniqueIds);
+
+    if (incoming.length > 0) {
+      friendRequestsSection.style.display = 'block';
+      friendRequestsList.innerHTML = incoming.map(f => `
+        <div class="mc-person-row">
+          <span class="mc-person-name">${profileMap[f.requester_id] || 'Unknown'}</span>
+          <div class="mc-person-actions">
+            <button class="mc-person-btn accept" data-accept="${f.id}">Accept</button>
+            <button class="mc-person-btn decline" data-decline="${f.id}">Decline</button>
+          </div>
+        </div>
+      `).join('');
+    } else {
+      friendRequestsSection.style.display = 'none';
+      friendRequestsList.innerHTML = '';
+    }
+
+    if (accepted.length > 0) {
+      friendsListEl.innerHTML = accepted.map(f => {
+        const otherId = f.requester_id === currentUser.id ? f.addressee_id : f.requester_id;
+        const stat = statsMap[otherId];
+        return `
+          <div class="mc-person-row">
+            <div>
+              <div class="mc-person-name">${profileMap[otherId] || 'Unknown'}</div>
+              <div class="mc-person-stats">${personStatsLine(stat)}</div>
+            </div>
+            <div class="mc-person-actions">
+              <button class="mc-person-btn remove" data-remove-friend="${f.id}">Remove</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    } else {
+      friendsListEl.innerHTML = '<div class="mc-empty">No friends added yet — search above to add some.</div>';
+    }
+  }
+
+  friendRequestsList.addEventListener('click', async (e) => {
+    const acceptBtn = e.target.closest('[data-accept]');
+    if (acceptBtn) {
+      await sb.from('friendships').update({ status: 'accepted' }).eq('id', acceptBtn.dataset.accept);
+      loadFriendsData();
+      return;
+    }
+    const declineBtn = e.target.closest('[data-decline]');
+    if (declineBtn) {
+      await sb.from('friendships').delete().eq('id', declineBtn.dataset.decline);
+      loadFriendsData();
+      return;
+    }
+  });
+
+  friendsListEl.addEventListener('click', async (e) => {
+    const removeBtn = e.target.closest('[data-remove-friend]');
+    if (removeBtn) {
+      await sb.from('friendships').delete().eq('id', removeBtn.dataset.removeFriend);
+      loadFriendsData();
+    }
+  });
+
+  async function loadLeaderboard() {
+    if (!sb || !currentUser) return;
+    const metric = leaderboardMetricSelect.value;
+    const { data, error } = await sb
+      .from('user_stats')
+      .select('*')
+      .not(metric, 'is', null)
+      .order(metric, { ascending: true })
+      .limit(50);
+    if (error) { console.error('Could not load leaderboard', error); return; }
+
+    const ids = data.map(row => row.user_id);
+    const profileMap = await fetchProfilesByIds(ids);
+
+    if (data.length === 0) {
+      leaderboardListEl.innerHTML = '<div class="mc-empty">No one has logged times yet.</div>';
+      return;
+    }
+
+    leaderboardListEl.innerHTML = data.map((row, i) => `
+      <div class="mc-leaderboard-row ${row.user_id === currentUser.id ? 'mc-is-me' : ''}">
+        <span class="mc-leaderboard-rank">#${i + 1}</span>
+        <span class="mc-leaderboard-name">${profileMap[row.user_id] || 'Unknown'}</span>
+        <span class="mc-leaderboard-value">${formatTime(row[metric])}</span>
+      </div>
+    `).join('');
+  }
+
+  leaderboardMetricSelect.addEventListener('change', loadLeaderboard);
+
+  function loadCommunity() {
+    loadFriendsData();
+  }
 
   historyList.addEventListener('click', async (e) => {
     const delBtn = e.target.closest('[data-delete]');
@@ -1408,9 +1830,7 @@
     sb.auth.onAuthStateChange(async (event, session) => {
       if (session && session.user) {
         currentUser = session.user;
-        showApp(currentUser);
-        await fetchSolves();
-        render();
+        await ensureProfile(currentUser);
       } else {
         currentUser = null;
         showAuthScreen();
