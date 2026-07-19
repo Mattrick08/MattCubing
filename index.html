@@ -207,6 +207,14 @@
     letter-spacing: -0.01em;
     line-height: 1;
   }
+  .mc-timer-subdigits {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 14px;
+    opacity: 0.65;
+    margin-top: 4px;
+    min-height: 18px;
+  }
   .mc-timer-hint {
     font-family: var(--body);
     font-size: 12.5px;
@@ -278,6 +286,7 @@
   .mc-history-time.mc-is-best { color: var(--yellow); }
   .mc-history-time.mc-is-dnf { color: var(--red); }
   .mc-penalty-suffix { color: var(--muted); font-size: 11px; margin-left: 2px; }
+  .mc-history-subtime { color: var(--muted); font-size: 11.5px; font-family: var(--mono); margin-top: 3px; }
 
   .mc-penalty-group { display: flex; gap: 3px; margin-left: auto; }
   .mc-pen-btn {
@@ -403,6 +412,7 @@
     <div class="mc-timer-wrap">
       <div class="mc-timer" id="mc-timer">
         <div class="mc-timer-digits" id="mc-timer-digits">0:00.000</div>
+        <div class="mc-timer-subdigits" id="mc-timer-subdigits"></div>
         <div class="mc-timer-hint" id="mc-timer-hint">Tap or press space to start</div>
       </div>
     </div>
@@ -475,7 +485,7 @@
 
   // Timer state machine: 'idle' -> 'inspecting' -> 'running' -> 'idle'
   let timerState = 'idle';
-  let pendingPenalty = 'none';
+  let pendingOvertimeMs = 0;
   let useInspection = false;
   let inspectionStart = 0;
   let inspectionHandle = null;
@@ -487,6 +497,7 @@
 
   const timerEl = document.getElementById('mc-timer');
   const digitsEl = document.getElementById('mc-timer-digits');
+  const subDigitsEl = document.getElementById('mc-timer-subdigits');
   const hintEl = document.getElementById('mc-timer-hint');
   const chartContainer = document.getElementById('mc-chart-container');
   const historyList = document.getElementById('mc-history-list');
@@ -658,14 +669,15 @@
       ts: new Date(r.created_at).getTime(),
       scramble: r.scramble || '',
       penalty: r.penalty || 'none',
-      note: r.note || ''
+      note: r.note || '',
+      overtimeMs: r.overtime_ms || 0
     }));
   }
 
-  async function addSolve(ms, penalty, scramble, flashPb) {
+  async function addSolve(ms, overtimeMs, scramble, flashPb) {
     if (!sb || !currentUser) return;
     const { error } = await sb.from('solves').insert({
-      user_id: currentUser.id, ms, penalty: penalty || 'none', scramble: scramble || '', note: ''
+      user_id: currentUser.id, ms, overtime_ms: overtimeMs || 0, penalty: 'none', scramble: scramble || '', note: ''
     });
     if (error) { console.error('Could not save time', error); return; }
     await fetchSolves();
@@ -700,8 +712,9 @@
 
   function effectiveMs(solve) {
     if (solve.penalty === 'DNF') return null;
-    if (solve.penalty === '+2') return solve.ms + 2000;
-    return solve.ms;
+    const base = solve.ms + (solve.overtimeMs || 0);
+    if (solve.penalty === '+2') return base + 2000;
+    return base;
   }
 
   function computeStats() {
@@ -860,6 +873,10 @@
         </div>
       `;
 
+      const subtimeBlock = (s.overtimeMs && s.overtimeMs > 0 && s.penalty !== 'DNF')
+        ? `<div class="mc-history-subtime">Solve only: ${formatTime(s.ms)} (+${formatTime(s.overtimeMs)} inspection)</div>`
+        : '';
+
       const noteBlock = editingNoteId === s.id
         ? `<div class="mc-note-edit">
              <input type="text" maxlength="140" placeholder="Add a note…" value="${(s.note || '').replace(/"/g, '&quot;')}" data-note-input="${s.id}">
@@ -885,6 +902,7 @@
             <button class="mc-icon-btn" data-edit-note="${s.id}" title="Add note">🗒</button>
             <button class="mc-del-btn" data-delete="${s.id}" title="Delete this time">✕</button>
           </div>
+          ${subtimeBlock}
           ${noteBlock}
           ${scrambleBlock}
         </div>
@@ -981,9 +999,7 @@
 
   function endInspectionAndStart() {
     const elapsedSec = (performance.now() - inspectionStart) / 1000;
-    if (elapsedSec <= 15) pendingPenalty = 'none';
-    else if (elapsedSec <= 17) pendingPenalty = '+2';
-    else pendingPenalty = 'DNF';
+    pendingOvertimeMs = elapsedSec > 15 ? Math.round((elapsedSec - 15) * 1000) : 0;
     clearInterval(inspectionHandle);
     startSolveTimer();
   }
@@ -1004,22 +1020,25 @@
 
   async function stopSolveTimer() {
     clearInterval(solveHandle);
-    const elapsed = performance.now() - solveStart;
+    const raw = performance.now() - solveStart;
+    const overtime = pendingOvertimeMs;
+    const total = raw + overtime;
     timerState = 'idle';
     timerEl.classList.remove('running', 'inspecting');
     hintEl.textContent = 'Tap or press space to start';
-    digitsEl.textContent = formatTime(elapsed);
-    const penaltyForThisSolve = pendingPenalty;
+    digitsEl.textContent = formatTime(total);
+    subDigitsEl.textContent = overtime > 0 ? ('Solve only: ' + formatTime(raw)) : '';
     const scrambleForThisSolve = currentScramble;
-    pendingPenalty = 'none';
-    await addSolve(elapsed, penaltyForThisSolve, scrambleForThisSolve, true);
+    pendingOvertimeMs = 0;
+    await addSolve(raw, overtime, scrambleForThisSolve, true);
     newScramble();
   }
 
   function handleTimerPress() {
     if (timerState === 'idle') {
+      subDigitsEl.textContent = '';
       if (useInspection) startInspection();
-      else { pendingPenalty = 'none'; startSolveTimer(); }
+      else { pendingOvertimeMs = 0; startSolveTimer(); }
     }
     else if (timerState === 'inspecting') endInspectionAndStart();
     else if (timerState === 'running') stopSolveTimer();
@@ -1050,7 +1069,7 @@
       shakeInvalid(inMin); shakeInvalid(inSec); shakeInvalid(inMs);
       return;
     }
-    await addSolve(total, 'none', currentScramble, true);
+    await addSolve(total, 0, currentScramble, true);
     newScramble();
     inMin.value = ''; inSec.value = ''; inMs.value = '';
     inMin.focus();
