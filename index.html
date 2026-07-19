@@ -440,6 +440,26 @@
   .mc-leaderboard-rank { font-family: var(--mono); font-weight: 700; color: var(--muted); width: 28px; }
   .mc-leaderboard-name { flex: 1; font-size: 13.5px; font-weight: 600; }
   .mc-leaderboard-value { font-family: var(--mono); font-weight: 700; font-size: 14px; color: var(--yellow); }
+
+  .mc-challenge-block { margin-bottom: 24px; }
+  .mc-challenge-block:last-child { margin-bottom: 0; }
+  .mc-challenge-header {
+    display: flex; align-items: baseline; justify-content: space-between;
+  }
+  .mc-challenge-countdown {
+    font-size: 11.5px; color: var(--muted); font-family: var(--mono);
+  }
+  .mc-challenge-entry {
+    display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap;
+  }
+  .mc-challenge-entry input {
+    width: 60px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: var(--mono); font-size: 14px; padding: 7px 6px; text-align: center;
+  }
+  .mc-challenge-entry input:focus { outline: none; border-color: var(--blue); }
+  .mc-challenge-yourbest {
+    margin-top: 10px; font-size: 12.5px; color: var(--muted); font-family: var(--mono);
+  }
   .mc-history-list { max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
   .mc-history-row {
     background: var(--panel-2); border-radius: 10px; padding: 9px 10px; font-size: 13.5px;
@@ -755,6 +775,7 @@
       <div class="mc-community-tabs">
         <button class="mc-community-tab active" id="mc-tab-friends" data-tab="friends">Friends</button>
         <button class="mc-community-tab" id="mc-tab-leaderboard" data-tab="leaderboard">Leaderboard</button>
+        <button class="mc-community-tab" id="mc-tab-challenges" data-tab="challenges">Challenges</button>
       </div>
 
       <div id="mc-friends-panel" class="mc-community-panel">
@@ -781,6 +802,40 @@
           <option value="week_avg_ms">This week's average</option>
         </select>
         <div id="mc-leaderboard-list"></div>
+      </div>
+
+      <div id="mc-challenges-panel" class="mc-community-panel" style="display:none;">
+        <div class="mc-challenge-block" id="mc-challenge-daily">
+          <div class="mc-challenge-header">
+            <h3 class="mc-community-subheading" style="margin-top:0;">Daily challenge</h3>
+            <span class="mc-challenge-countdown" id="mc-challenge-daily-countdown"></span>
+          </div>
+          <div class="mc-scramble-text" id="mc-challenge-daily-scramble">Loading…</div>
+          <div class="mc-challenge-entry">
+            <input type="number" min="0" placeholder="Min" id="mc-challenge-daily-min">
+            <input type="number" min="0" max="59" placeholder="Sec" id="mc-challenge-daily-sec">
+            <input type="number" min="0" max="999" placeholder="Ms" id="mc-challenge-daily-ms">
+            <button class="mc-scramble-refresh" id="mc-challenge-daily-submit">Submit</button>
+          </div>
+          <div class="mc-challenge-yourbest" id="mc-challenge-daily-yourbest"></div>
+          <div id="mc-challenge-daily-leaderboard"></div>
+        </div>
+
+        <div class="mc-challenge-block" id="mc-challenge-weekly">
+          <div class="mc-challenge-header">
+            <h3 class="mc-community-subheading" style="margin-top:0;">Weekly challenge</h3>
+            <span class="mc-challenge-countdown" id="mc-challenge-weekly-countdown"></span>
+          </div>
+          <div class="mc-scramble-text" id="mc-challenge-weekly-scramble">Loading…</div>
+          <div class="mc-challenge-entry">
+            <input type="number" min="0" placeholder="Min" id="mc-challenge-weekly-min">
+            <input type="number" min="0" max="59" placeholder="Sec" id="mc-challenge-weekly-sec">
+            <input type="number" min="0" max="999" placeholder="Ms" id="mc-challenge-weekly-ms">
+            <button class="mc-scramble-refresh" id="mc-challenge-weekly-submit">Submit</button>
+          </div>
+          <div class="mc-challenge-yourbest" id="mc-challenge-weekly-yourbest"></div>
+          <div id="mc-challenge-weekly-leaderboard"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1414,8 +1469,10 @@
 
   const tabFriendsBtn = document.getElementById('mc-tab-friends');
   const tabLeaderboardBtn = document.getElementById('mc-tab-leaderboard');
+  const tabChallengesBtn = document.getElementById('mc-tab-challenges');
   const friendsPanel = document.getElementById('mc-friends-panel');
   const leaderboardPanel = document.getElementById('mc-leaderboard-panel');
+  const challengesPanel = document.getElementById('mc-challenges-panel');
   const friendSearchInput = document.getElementById('mc-friend-search');
   const friendSearchBtn = document.getElementById('mc-friend-search-btn');
   const friendSearchResults = document.getElementById('mc-friend-search-results');
@@ -1425,20 +1482,18 @@
   const leaderboardMetricSelect = document.getElementById('mc-leaderboard-metric');
   const leaderboardListEl = document.getElementById('mc-leaderboard-list');
 
-  tabFriendsBtn.addEventListener('click', () => {
-    tabFriendsBtn.classList.add('active');
-    tabLeaderboardBtn.classList.remove('active');
-    friendsPanel.style.display = 'block';
-    leaderboardPanel.style.display = 'none';
-    loadFriendsData();
-  });
-  tabLeaderboardBtn.addEventListener('click', () => {
-    tabLeaderboardBtn.classList.add('active');
-    tabFriendsBtn.classList.remove('active');
-    leaderboardPanel.style.display = 'block';
-    friendsPanel.style.display = 'none';
-    loadLeaderboard();
-  });
+  function setActiveTab(tab) {
+    tabFriendsBtn.classList.toggle('active', tab === 'friends');
+    tabLeaderboardBtn.classList.toggle('active', tab === 'leaderboard');
+    tabChallengesBtn.classList.toggle('active', tab === 'challenges');
+    friendsPanel.style.display = tab === 'friends' ? 'block' : 'none';
+    leaderboardPanel.style.display = tab === 'leaderboard' ? 'block' : 'none';
+    challengesPanel.style.display = tab === 'challenges' ? 'block' : 'none';
+  }
+
+  tabFriendsBtn.addEventListener('click', () => { setActiveTab('friends'); loadFriendsData(); });
+  tabLeaderboardBtn.addEventListener('click', () => { setActiveTab('leaderboard'); loadLeaderboard(); });
+  tabChallengesBtn.addEventListener('click', () => { setActiveTab('challenges'); loadChallenge('daily'); loadChallenge('weekly'); });
 
   async function syncUserStats(stats) {
     if (!sb || !currentUser) return;
@@ -1646,6 +1701,178 @@
   }
 
   leaderboardMetricSelect.addEventListener('change', loadLeaderboard);
+
+  // ---------- Daily / Weekly challenges ----------
+
+  const challengeState = { daily: null, weekly: null };
+  let challengeCountdownHandle = null;
+
+  function getDailyPeriodKey(d) {
+    d = d || new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  function getWeeklyPeriodKey(d) {
+    d = d || new Date();
+    const day = d.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + diffToMonday);
+    const y = monday.getFullYear();
+    const jan1 = new Date(y, 0, 1);
+    const weekNum = Math.ceil((((monday - jan1) / 86400000) + jan1.getDay() + 1) / 7);
+    return `${y}-W${String(weekNum).padStart(2, '0')}`;
+  }
+
+  function getPeriodEnd(periodType) {
+    const now = new Date();
+    if (periodType === 'daily') {
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    }
+    const day = now.getDay();
+    const diffToNextMonday = day === 0 ? 1 : 8 - day;
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToNextMonday);
+  }
+
+  function formatCountdown(msRemaining) {
+    if (msRemaining <= 0) return 'Refreshing…';
+    const totalMin = Math.floor(msRemaining / 60000);
+    const days = Math.floor(totalMin / 1440);
+    const hours = Math.floor((totalMin % 1440) / 60);
+    const mins = totalMin % 60;
+    if (days > 0) return `Resets in ${days}d ${hours}h`;
+    if (hours > 0) return `Resets in ${hours}h ${mins}m`;
+    return `Resets in ${mins}m`;
+  }
+
+  function updateChallengeCountdowns() {
+    const dailyEl = document.getElementById('mc-challenge-daily-countdown');
+    const weeklyEl = document.getElementById('mc-challenge-weekly-countdown');
+    dailyEl.textContent = formatCountdown(getPeriodEnd('daily') - new Date());
+    weeklyEl.textContent = formatCountdown(getPeriodEnd('weekly') - new Date());
+  }
+
+  async function ensureChallenge(periodType) {
+    const periodKey = periodType === 'daily' ? getDailyPeriodKey() : getWeeklyPeriodKey();
+    const { data: existing, error: selectErr } = await sb
+      .from('challenges')
+      .select('*')
+      .eq('period_type', periodType)
+      .eq('period_key', periodKey)
+      .maybeSingle();
+    if (selectErr) { console.error('Could not check challenge', selectErr); return null; }
+    if (existing) return existing;
+
+    const scramble = generateScramble();
+    const { data: created, error: insertErr } = await sb
+      .from('challenges')
+      .insert({ period_type: periodType, period_key: periodKey, scramble })
+      .select()
+      .single();
+    if (insertErr) {
+      // Someone else likely created it first — fetch theirs instead.
+      const { data: retry } = await sb
+        .from('challenges')
+        .select('*')
+        .eq('period_type', periodType)
+        .eq('period_key', periodKey)
+        .maybeSingle();
+      return retry || null;
+    }
+    return created;
+  }
+
+  async function loadChallenge(periodType) {
+    if (!sb || !currentUser) return;
+    const challenge = await ensureChallenge(periodType);
+    const scrambleEl = document.getElementById(`mc-challenge-${periodType}-scramble`);
+    const yourBestEl = document.getElementById(`mc-challenge-${periodType}-yourbest`);
+    const leaderboardEl = document.getElementById(`mc-challenge-${periodType}-leaderboard`);
+    if (!challenge) { scrambleEl.textContent = 'Could not load — try again.'; return; }
+
+    challengeState[periodType] = challenge;
+    scrambleEl.textContent = challenge.scramble;
+    updateChallengeCountdowns();
+
+    const { data: attempts, error } = await sb
+      .from('challenge_attempts')
+      .select('*')
+      .eq('challenge_id', challenge.id)
+      .order('ms', { ascending: true })
+      .limit(10);
+    if (error) { console.error('Could not load attempts', error); return; }
+
+    const ids = attempts.map(a => a.user_id);
+    const profileMap = await fetchProfilesByIds(ids);
+
+    const myAttempt = attempts.find(a => a.user_id === currentUser.id);
+    if (myAttempt) {
+      yourBestEl.textContent = 'Your best: ' + formatTime(myAttempt.ms);
+    } else {
+      const { data: mine } = await sb
+        .from('challenge_attempts')
+        .select('*')
+        .eq('challenge_id', challenge.id)
+        .eq('user_id', currentUser.id)
+        .maybeSingle();
+      yourBestEl.textContent = mine ? ('Your best: ' + formatTime(mine.ms)) : 'You haven\'t submitted a time yet.';
+    }
+
+    leaderboardEl.innerHTML = attempts.length > 0
+      ? attempts.map((a, i) => `
+          <div class="mc-leaderboard-row ${a.user_id === currentUser.id ? 'mc-is-me' : ''}">
+            <span class="mc-leaderboard-rank">#${i + 1}</span>
+            <span class="mc-leaderboard-name">${profileMap[a.user_id] || 'Unknown'}</span>
+            <span class="mc-leaderboard-value">${formatTime(a.ms)}</span>
+          </div>
+        `).join('')
+      : '<div class="mc-empty">No attempts yet — be the first!</div>';
+  }
+
+  async function submitChallengeAttempt(periodType) {
+    const challenge = challengeState[periodType];
+    if (!challenge || !sb || !currentUser) return;
+    const minInput = document.getElementById(`mc-challenge-${periodType}-min`);
+    const secInput = document.getElementById(`mc-challenge-${periodType}-sec`);
+    const msInput = document.getElementById(`mc-challenge-${periodType}-ms`);
+    const min = parseInt(minInput.value, 10) || 0;
+    const sec = parseInt(secInput.value, 10) || 0;
+    const ms = parseInt(msInput.value, 10) || 0;
+    const total = min * 60000 + sec * 1000 + ms;
+    if (total <= 0) return;
+
+    try {
+      const { data: existing } = await sb
+        .from('challenge_attempts')
+        .select('*')
+        .eq('challenge_id', challenge.id)
+        .eq('user_id', currentUser.id)
+        .maybeSingle();
+
+      if (!existing) {
+        await sb.from('challenge_attempts').insert({ challenge_id: challenge.id, user_id: currentUser.id, ms: total });
+      } else if (total < existing.ms) {
+        await sb.from('challenge_attempts').update({ ms: total }).eq('id', existing.id);
+      }
+      minInput.value = ''; secInput.value = ''; msInput.value = '';
+      loadChallenge(periodType);
+    } catch (err) {
+      console.error('Could not submit challenge time', err);
+    }
+  }
+
+  document.getElementById('mc-challenge-daily-submit').addEventListener('click', () => submitChallengeAttempt('daily'));
+  document.getElementById('mc-challenge-weekly-submit').addEventListener('click', () => submitChallengeAttempt('weekly'));
+  ['mc-challenge-daily-min', 'mc-challenge-daily-sec', 'mc-challenge-daily-ms'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') submitChallengeAttempt('daily'); });
+  });
+  ['mc-challenge-weekly-min', 'mc-challenge-weekly-sec', 'mc-challenge-weekly-ms'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') submitChallengeAttempt('weekly'); });
+  });
+
+  challengeCountdownHandle = setInterval(updateChallengeCountdowns, 60000);
 
   function loadCommunity() {
     loadFriendsData();
