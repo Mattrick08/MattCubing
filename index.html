@@ -207,14 +207,18 @@
     letter-spacing: -0.01em;
     line-height: 1;
   }
-  .mc-timer-subdigits {
+  .mc-timer-breakdown {
     font-family: var(--mono);
     font-weight: 700;
     font-size: 15px;
-    color: #a34500;
     margin-top: 4px;
     min-height: 18px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
   }
+  .mc-timer-solve-value { color: #163a8f; }
+  .mc-timer-overtime-value { color: #a34500; }
   .mc-timer-hint {
     font-family: var(--body);
     font-size: 12.5px;
@@ -286,13 +290,23 @@
   .mc-history-time.mc-is-best { color: var(--yellow); }
   .mc-history-time.mc-is-dnf { color: var(--red); }
   .mc-overtime-badge {
-    margin-left: auto;
     color: var(--orange);
     font-family: var(--mono);
     font-weight: 700;
     font-size: 13px;
     background: rgba(255, 138, 61, 0.12);
     border: 1px solid rgba(255, 138, 61, 0.35);
+    border-radius: 6px;
+    padding: 3px 8px;
+  }
+  .mc-solve-badge {
+    margin-left: auto;
+    color: var(--blue);
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 13px;
+    background: rgba(47, 107, 255, 0.12);
+    border: 1px solid rgba(47, 107, 255, 0.35);
     border-radius: 6px;
     padding: 3px 8px;
   }
@@ -411,7 +425,10 @@
     <div class="mc-timer-wrap">
       <div class="mc-timer" id="mc-timer">
         <div class="mc-timer-digits" id="mc-timer-digits">0:00.000</div>
-        <div class="mc-timer-subdigits" id="mc-timer-subdigits"></div>
+        <div class="mc-timer-breakdown" id="mc-timer-breakdown">
+          <span class="mc-timer-solve-value" id="mc-timer-solve-value"></span>
+          <span class="mc-timer-overtime-value" id="mc-timer-overtime-value"></span>
+        </div>
         <div class="mc-timer-hint" id="mc-timer-hint">Tap or press space to start</div>
       </div>
     </div>
@@ -496,7 +513,8 @@
 
   const timerEl = document.getElementById('mc-timer');
   const digitsEl = document.getElementById('mc-timer-digits');
-  const subDigitsEl = document.getElementById('mc-timer-subdigits');
+  const timerSolveEl = document.getElementById('mc-timer-solve-value');
+  const timerOvertimeEl = document.getElementById('mc-timer-overtime-value');
   const hintEl = document.getElementById('mc-timer-hint');
   const chartContainer = document.getElementById('mc-chart-container');
   const historyList = document.getElementById('mc-history-list');
@@ -855,6 +873,9 @@
         timeHtml = `<span class="mc-history-time ${isBest ? 'mc-is-best' : ''}">${formatTime(effectiveMs(s))}</span>`;
       }
 
+      const solveBadge = (s.overtimeMs && s.overtimeMs > 0)
+        ? `<span class="mc-solve-badge">Solve ${formatTime(s.ms)}</span>`
+        : '';
       const overtimeBadge = (s.overtimeMs && s.overtimeMs > 0)
         ? `<span class="mc-overtime-badge">+${(s.overtimeMs / 1000).toFixed(1)}s</span>`
         : '';
@@ -879,6 +900,7 @@
           <div class="mc-history-main">
             <span class="mc-history-trial">#${i + 1}</span>
             ${timeHtml}
+            ${solveBadge}
             ${overtimeBadge}
             <button class="mc-icon-btn" data-edit-time="${s.id}" title="Edit time">✎</button>
             <button class="mc-icon-btn" data-edit-note="${s.id}" title="Add note">🗒</button>
@@ -1005,7 +1027,13 @@
     timerEl.classList.remove('running', 'inspecting');
     hintEl.textContent = 'Tap or press space to start';
     digitsEl.textContent = formatTime(total);
-    subDigitsEl.textContent = overtime > 0 ? ('+' + (overtime / 1000).toFixed(1) + 's') : '';
+    if (overtime > 0) {
+      timerSolveEl.textContent = 'Solve ' + formatTime(raw);
+      timerOvertimeEl.textContent = '+' + (overtime / 1000).toFixed(1) + 's';
+    } else {
+      timerSolveEl.textContent = '';
+      timerOvertimeEl.textContent = '';
+    }
     const scrambleForThisSolve = currentScramble;
     pendingOvertimeMs = 0;
     await addSolve(raw, overtime, scrambleForThisSolve, true);
@@ -1014,7 +1042,8 @@
 
   function handleTimerPress() {
     if (timerState === 'idle') {
-      subDigitsEl.textContent = '';
+      timerSolveEl.textContent = '';
+      timerOvertimeEl.textContent = '';
       if (useInspection) startInspection();
       else { pendingOvertimeMs = 0; startSolveTimer(); }
     }
