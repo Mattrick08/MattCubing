@@ -675,8 +675,10 @@
 
   async function addSolve(ms, overtimeMs, scramble, flashPb) {
     if (!sb || !currentUser) return;
+    const roundedMs = Math.round(ms);
+    const roundedOvertimeMs = Math.round(overtimeMs || 0);
     const { error } = await sb.from('solves').insert({
-      user_id: currentUser.id, ms, overtime_ms: overtimeMs || 0, penalty: 'none', scramble: scramble || '', note: ''
+      user_id: currentUser.id, ms: roundedMs, overtime_ms: roundedOvertimeMs, penalty: 'none', scramble: scramble || '', note: ''
     });
     if (error) { console.error('Could not save time', error); return; }
     await fetchSolves();
