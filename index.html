@@ -454,6 +454,51 @@
   .mc-leaderboard-rank { font-family: var(--mono); font-weight: 700; color: var(--muted); width: 28px; }
   .mc-leaderboard-name { flex: 1; font-size: 13.5px; font-weight: 600; }
   .mc-leaderboard-value { font-family: var(--mono); font-weight: 700; font-size: 14px; color: var(--yellow); }
+
+  .mc-arena-create-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .mc-btn-outline { background: var(--panel-2); border: 1px solid var(--border); color: var(--text); }
+  .mc-arena-error { color: var(--red); font-size: 12.5px; min-height: 18px; margin-top: 8px; }
+  .mc-arena-room-card {
+    background: var(--panel-2); border-radius: 10px; padding: 10px 12px; margin-top: 8px;
+  }
+  .mc-arena-room-header { display: flex; align-items: center; justify-content: space-between; }
+  .mc-arena-room-code-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-right: 8px; }
+  .mc-arena-room-code { font-family: var(--mono); font-weight: 700; font-size: 16px; color: var(--yellow); letter-spacing: 0.08em; }
+  .mc-arena-participants { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+  .mc-arena-participant-row {
+    display: flex; align-items: center; gap: 10px; background: var(--panel-2); border-radius: 8px; padding: 8px 10px; font-size: 13px;
+  }
+  .mc-arena-participant-row.mc-disconnected { opacity: 0.5; }
+  .mc-arena-ready-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+  .mc-arena-ready-dot.mc-ready { background: var(--green); }
+  .mc-arena-participant-name { flex: 1; font-weight: 600; }
+  .mc-arena-participant-status { font-size: 11.5px; color: var(--muted); font-family: var(--mono); }
+  .mc-arena-results { margin-top: 14px; }
+  .mc-arena-result-row {
+    display: flex; align-items: center; gap: 10px; background: var(--panel-2); border-radius: 8px; padding: 8px 10px; margin-top: 6px; font-size: 13px;
+  }
+  .mc-arena-result-row.mc-winner { border: 1px solid var(--yellow); }
+  .mc-arena-rank { font-family: var(--mono); font-weight: 700; color: var(--muted); width: 26px; }
+  .mc-arena-chat-log {
+    max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;
+    background: var(--bg); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px;
+  }
+  .mc-arena-chat-msg { font-size: 12.5px; }
+  .mc-arena-chat-msg .mc-arena-chat-name { font-weight: 700; color: var(--blue); margin-right: 5px; }
+  .mc-arena-chat-quick { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .mc-arena-chat-quick button {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 999px; padding: 5px 10px; font-size: 11.5px; cursor: pointer;
+  }
+  .mc-arena-chat-quick button:hover { border-color: var(--blue); }
+  .mc-arena-public-row {
+    display: flex; align-items: center; gap: 10px; background: var(--panel-2); border-radius: 8px; padding: 8px 10px; margin-top: 8px; font-size: 13px;
+  }
+  .mc-history-time.mc-is-arena { color: var(--purple); }
+  .mc-arena-tag {
+    font-size: 10.5px; font-weight: 700; color: var(--purple); background: rgba(139,92,246,0.15);
+    border: 1px solid rgba(139,92,246,0.4); border-radius: 6px; padding: 2px 6px; margin-left: 4px;
+  }
   .mc-leaderboard-row-wrap { margin-top: 6px; }
   .mc-leaderboard-row-wrap .mc-leaderboard-row { margin-top: 0; }
   .mc-clickable-name { cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
@@ -915,6 +960,7 @@
         <button class="mc-community-tab active" id="mc-tab-friends" data-tab="friends">Friends</button>
         <button class="mc-community-tab" id="mc-tab-leaderboard" data-tab="leaderboard">Leaderboard</button>
         <button class="mc-community-tab" id="mc-tab-challenges" data-tab="challenges">Challenges</button>
+        <button class="mc-community-tab" id="mc-tab-arena" data-tab="arena">Arena</button>
       </div>
 
       <div id="mc-friends-panel" class="mc-community-panel">
@@ -939,6 +985,7 @@
           <option value="avg_ms">Lifetime average</option>
           <option value="today_avg_ms">Today's average</option>
           <option value="week_avg_ms">This week's average</option>
+          <option value="arena_wins">Arena wins (Battle Cuber)</option>
         </select>
         <div id="mc-leaderboard-list"></div>
       </div>
@@ -974,6 +1021,62 @@
           </div>
           <div class="mc-challenge-yourbest" id="mc-challenge-weekly-yourbest"></div>
           <div id="mc-challenge-weekly-leaderboard"></div>
+        </div>
+      </div>
+
+      <div id="mc-arena-panel" class="mc-community-panel" style="display:none;">
+
+        <!-- Lobby -->
+        <div id="mc-arena-lobby">
+          <div class="mc-arena-create-row">
+            <button class="mc-add-btn" id="mc-arena-create-public" style="margin-top:0;">Create public arena</button>
+            <button class="mc-add-btn mc-btn-outline" id="mc-arena-create-private" style="margin-top:0;">Create private arena</button>
+          </div>
+          <div class="mc-friend-search-row" style="margin-top:12px;">
+            <input type="text" id="mc-arena-code-input" placeholder="Enter room code…" maxlength="8" style="text-transform:uppercase;">
+            <button class="mc-scramble-refresh" id="mc-arena-join-code-btn">Join</button>
+          </div>
+          <div class="mc-arena-error" id="mc-arena-lobby-error"></div>
+          <h3 class="mc-community-subheading">Public arenas</h3>
+          <div id="mc-arena-public-list"></div>
+        </div>
+
+        <!-- Room -->
+        <div id="mc-arena-room" style="display:none;">
+          <div class="mc-arena-room-header">
+            <div>
+              <span class="mc-arena-room-code-label">Room code</span>
+              <span class="mc-arena-room-code" id="mc-arena-room-code"></span>
+              <button class="mc-icon-btn" id="mc-arena-copy-invite" title="Copy invite link">🔗</button>
+            </div>
+            <button class="mc-signout-btn" id="mc-arena-leave-btn">Leave</button>
+          </div>
+
+          <div class="mc-scramble-label" style="margin-top:14px;">Scramble</div>
+          <div class="mc-scramble-text" id="mc-arena-scramble">—</div>
+
+          <div id="mc-arena-participants" class="mc-arena-participants"></div>
+
+          <button class="mc-add-btn" id="mc-arena-ready-btn">I'm ready</button>
+
+          <div id="mc-arena-race-wrap" style="display:none; margin-top:16px;">
+            <div class="mc-timer" id="mc-arena-timer">
+              <div class="mc-timer-digits" id="mc-arena-timer-digits">15</div>
+              <div class="mc-timer-hint" id="mc-arena-timer-hint">Get ready…</div>
+            </div>
+          </div>
+
+          <div id="mc-arena-results" class="mc-arena-results" style="display:none;"></div>
+
+          <div id="mc-arena-chat" style="margin-top:18px;">
+            <h3 class="mc-community-subheading">Chat</h3>
+            <div class="mc-arena-chat-log" id="mc-arena-chat-log"></div>
+            <div class="mc-arena-chat-quick" id="mc-arena-chat-quick"></div>
+            <div class="mc-friend-search-row">
+              <input type="text" id="mc-arena-chat-input" placeholder="Say something…" maxlength="200">
+              <button class="mc-scramble-refresh" id="mc-arena-chat-send">Send</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1386,7 +1489,8 @@
       scramble: r.scramble || '',
       penalty: r.penalty || 'none',
       note: r.note || '',
-      overtimeMs: r.overtime_ms || 0
+      overtimeMs: r.overtime_ms || 0,
+      arenaId: r.arena_id || null
     }));
   }
 
@@ -1673,7 +1777,7 @@
           </div>
         `;
       } else {
-        timeHtml = `<span class="mc-history-time ${isBest ? 'mc-is-best' : ''}">${formatTime(effectiveMs(s))}</span>`;
+        timeHtml = `<span class="mc-history-time ${isBest ? 'mc-is-best' : ''} ${s.arenaId ? 'mc-is-arena' : ''}">${formatTime(effectiveMs(s))}</span>${s.arenaId ? '<span class="mc-arena-tag">ARENA</span>' : ''}`;
       }
 
       const solveBadge = (s.overtimeMs && s.overtimeMs > 0)
@@ -1764,18 +1868,24 @@
   const leaderboardMetricSelect = document.getElementById('mc-leaderboard-metric');
   const leaderboardListEl = document.getElementById('mc-leaderboard-list');
 
+  const tabArenaBtn = document.getElementById('mc-tab-arena');
+  const arenaPanel = document.getElementById('mc-arena-panel');
+
   function setActiveTab(tab) {
     tabFriendsBtn.classList.toggle('active', tab === 'friends');
     tabLeaderboardBtn.classList.toggle('active', tab === 'leaderboard');
     tabChallengesBtn.classList.toggle('active', tab === 'challenges');
+    tabArenaBtn.classList.toggle('active', tab === 'arena');
     friendsPanel.style.display = tab === 'friends' ? 'block' : 'none';
     leaderboardPanel.style.display = tab === 'leaderboard' ? 'block' : 'none';
     challengesPanel.style.display = tab === 'challenges' ? 'block' : 'none';
+    arenaPanel.style.display = tab === 'arena' ? 'block' : 'none';
   }
 
   tabFriendsBtn.addEventListener('click', () => { setActiveTab('friends'); loadFriendsData(); });
   tabLeaderboardBtn.addEventListener('click', () => { setActiveTab('leaderboard'); loadLeaderboard(); });
   tabChallengesBtn.addEventListener('click', () => { setActiveTab('challenges'); loadChallenge('daily'); loadChallenge('weekly'); });
+  tabArenaBtn.addEventListener('click', () => { setActiveTab('arena'); enterArenaLobby(); });
 
   async function syncUserStats(stats) {
     if (!sb || !currentUser) return;
@@ -1963,12 +2073,10 @@
   async function loadLeaderboard() {
     if (!sb || !currentUser) return;
     const metric = leaderboardMetricSelect.value;
-    const { data, error } = await sb
-      .from('user_stats')
-      .select('*')
-      .not(metric, 'is', null)
-      .order(metric, { ascending: true })
-      .limit(50);
+    const isWins = metric === 'arena_wins';
+    let query = sb.from('user_stats').select('*');
+    query = isWins ? query.gt(metric, 0) : query.not(metric, 'is', null);
+    const { data, error } = await query.order(metric, { ascending: !isWins }).limit(50);
     if (error) { console.error('Could not load leaderboard', error); return; }
 
     leaderboardData = data;
@@ -1985,7 +2093,8 @@
     }
 
     leaderboardListEl.innerHTML = leaderboardData.map((row, i) => {
-      const isExpanded = expandedLeaderboardUserId === row.user_id;
+      const isWins = metric === 'arena_wins';
+      const isExpanded = !isWins && expandedLeaderboardUserId === row.user_id;
       const scramblePanel = isExpanded ? `
         <div class="mc-leaderboard-scramble-panel">
           ${row.best_scramble
@@ -1997,12 +2106,15 @@
             : `<div class="mc-empty">No scramble on record for their best time yet.</div>`}
         </div>
       ` : '';
+      const valueDisplay = isWins ? `${row.arena_wins} win${row.arena_wins === 1 ? '' : 's'}` : formatTime(row[metric]);
+      const nameClass = isWins ? 'mc-leaderboard-name' : 'mc-leaderboard-name mc-clickable-name';
+      const nameAttr = isWins ? '' : `data-toggle-user="${row.user_id}"`;
       return `
         <div class="mc-leaderboard-row-wrap">
           <div class="mc-leaderboard-row ${row.user_id === currentUser.id ? 'mc-is-me' : ''}">
             <span class="mc-leaderboard-rank">#${i + 1}</span>
-            <span class="mc-leaderboard-name mc-clickable-name" data-toggle-user="${row.user_id}">${escapeHtml(leaderboardProfileMap[row.user_id]) || 'Unknown'}</span>
-            <span class="mc-leaderboard-value">${formatTime(row[metric])}</span>
+            <span class="${nameClass}" ${nameAttr}>${escapeHtml(leaderboardProfileMap[row.user_id]) || 'Unknown'}</span>
+            <span class="mc-leaderboard-value">${valueDisplay}</span>
           </div>
           ${scramblePanel}
         </div>
@@ -2215,6 +2327,16 @@
 
   function loadCommunity() {
     loadFriendsData();
+    if (pendingArenaCode) {
+      const code = pendingArenaCode;
+      pendingArenaCode = null;
+      setActiveTab('arena');
+      (async () => {
+        const { data: arena } = await sb.from('arenas').select('*').eq('code', code.toUpperCase()).maybeSingle();
+        if (arena) joinArenaById(arena.id);
+        else { enterArenaLobby(); arenaLobbyErrorEl.textContent = 'That invite link is no longer valid.'; }
+      })();
+    }
   }
 
   let pendingDeleteId = null;
@@ -2415,6 +2537,397 @@
   [inMin, inSec, inMs].forEach(el => {
     el.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAdd(); });
   });
+
+  // ---------- Arena Mode ----------
+
+  const arenaLobbyEl = document.getElementById('mc-arena-lobby');
+  const arenaRoomEl = document.getElementById('mc-arena-room');
+  const arenaLobbyErrorEl = document.getElementById('mc-arena-lobby-error');
+  const arenaCreatePublicBtn = document.getElementById('mc-arena-create-public');
+  const arenaCreatePrivateBtn = document.getElementById('mc-arena-create-private');
+  const arenaCodeInput = document.getElementById('mc-arena-code-input');
+  const arenaJoinCodeBtn = document.getElementById('mc-arena-join-code-btn');
+  const arenaPublicListEl = document.getElementById('mc-arena-public-list');
+  const arenaRoomCodeEl = document.getElementById('mc-arena-room-code');
+  const arenaCopyInviteBtn = document.getElementById('mc-arena-copy-invite');
+  const arenaLeaveBtn = document.getElementById('mc-arena-leave-btn');
+  const arenaScrambleEl = document.getElementById('mc-arena-scramble');
+  const arenaParticipantsEl = document.getElementById('mc-arena-participants');
+  const arenaReadyBtn = document.getElementById('mc-arena-ready-btn');
+  const arenaRaceWrapEl = document.getElementById('mc-arena-race-wrap');
+  const arenaTimerEl = document.getElementById('mc-arena-timer');
+  const arenaTimerDigitsEl = document.getElementById('mc-arena-timer-digits');
+  const arenaTimerHintEl = document.getElementById('mc-arena-timer-hint');
+  const arenaResultsEl = document.getElementById('mc-arena-results');
+  const arenaChatLogEl = document.getElementById('mc-arena-chat-log');
+  const arenaChatQuickEl = document.getElementById('mc-arena-chat-quick');
+  const arenaChatInputEl = document.getElementById('mc-arena-chat-input');
+  const arenaChatSendBtn = document.getElementById('mc-arena-chat-send');
+
+  let currentArenaId = null;
+  let arenaPollHandle = null;
+  let arenaCountdownHandle = null;
+  let arenaRaceHandle = null;
+  let arenaPhase = 'lobby'; // lobby | waiting | countdown | racing | finished-personal
+  let arenaRaceStartPerf = 0;
+  let arenaLastKnownStatus = null;
+  let arenaHasCredited = false;
+
+  const ARENA_QUICK_MESSAGES = ["Ready when you are!", "GG!", "One more round?", "Good luck!", "Almost there…"];
+
+  function generateRoomCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code;
+  }
+
+  function enterArenaLobby() {
+    stopArenaPolling();
+    currentArenaId = null;
+    arenaPhase = 'lobby';
+    arenaRoomEl.style.display = 'none';
+    arenaLobbyEl.style.display = 'block';
+    loadPublicArenas();
+  }
+
+  async function loadPublicArenas() {
+    if (!sb || !currentUser) return;
+    const { data, error } = await sb
+      .from('arenas')
+      .select('*')
+      .eq('is_public', true)
+      .eq('status', 'waiting')
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (error) { console.error('Could not load public arenas', error); return; }
+
+    if (data.length === 0) {
+      arenaPublicListEl.innerHTML = '<div class="mc-empty">No public arenas open right now — start one!</div>';
+      return;
+    }
+
+    const creatorIds = data.map(a => a.created_by);
+    const profileMap = await fetchProfilesByIds(creatorIds);
+    const arenaIds = data.map(a => a.id);
+    const { data: allParticipants } = await sb.from('arena_participants').select('arena_id').in('arena_id', arenaIds);
+    const countByArena = {};
+    (allParticipants || []).forEach(p => { countByArena[p.arena_id] = (countByArena[p.arena_id] || 0) + 1; });
+
+    arenaPublicListEl.innerHTML = data.map(a => `
+      <div class="mc-arena-public-row">
+        <span>Room by ${escapeHtml(profileMap[a.created_by]) || 'Unknown'}</span>
+        <span style="color:var(--muted); font-size:11.5px;">${countByArena[a.id] || 0} joined</span>
+        <button class="mc-scramble-refresh" style="margin-left:auto;" data-join-arena="${a.id}">Join</button>
+      </div>
+    `).join('');
+  }
+
+  arenaPublicListEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-join-arena]');
+    if (btn) joinArenaById(btn.dataset.joinArena);
+  });
+
+  async function createArena(isPublic) {
+    arenaLobbyErrorEl.textContent = '';
+    const scramble = generateScramble();
+    let attempts = 0;
+    while (attempts < 5) {
+      const code = generateRoomCode();
+      const { data, error } = await sb
+        .from('arenas')
+        .insert({ code, is_public: isPublic, scramble, created_by: currentUser.id })
+        .select()
+        .single();
+      if (!error && data) {
+        await sb.from('arena_participants').insert({ arena_id: data.id, user_id: currentUser.id });
+        enterArenaRoom(data.id);
+        return;
+      }
+      attempts++;
+    }
+    arenaLobbyErrorEl.textContent = 'Could not create a room right now — try again.';
+  }
+
+  arenaCreatePublicBtn.addEventListener('click', () => createArena(true));
+  arenaCreatePrivateBtn.addEventListener('click', () => createArena(false));
+
+  async function joinArenaById(arenaId) {
+    arenaLobbyErrorEl.textContent = '';
+    const { data: arena, error } = await sb.from('arenas').select('*').eq('id', arenaId).maybeSingle();
+    if (error || !arena) { arenaLobbyErrorEl.textContent = 'Room not found.'; return; }
+    if (arena.status !== 'waiting') { arenaLobbyErrorEl.textContent = 'That race has already started.'; return; }
+
+    const { data: existing } = await sb.from('arena_participants').select('*').eq('arena_id', arenaId).eq('user_id', currentUser.id).maybeSingle();
+    if (!existing) {
+      const { error: joinErr } = await sb.from('arena_participants').insert({ arena_id: arenaId, user_id: currentUser.id });
+      if (joinErr) { arenaLobbyErrorEl.textContent = 'Could not join that room.'; return; }
+    }
+    enterArenaRoom(arenaId);
+  }
+
+  arenaJoinCodeBtn.addEventListener('click', async () => {
+    const code = arenaCodeInput.value.trim().toUpperCase();
+    if (!code) return;
+    arenaLobbyErrorEl.textContent = '';
+    const { data: arena, error } = await sb.from('arenas').select('*').eq('code', code).maybeSingle();
+    if (error || !arena) { arenaLobbyErrorEl.textContent = 'No room found with that code.'; return; }
+    joinArenaById(arena.id);
+  });
+  arenaCodeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') arenaJoinCodeBtn.click(); });
+
+  function enterArenaRoom(arenaId) {
+    currentArenaId = arenaId;
+    arenaPhase = 'waiting';
+    arenaHasCredited = false;
+    arenaLastKnownStatus = null;
+    arenaLobbyEl.style.display = 'none';
+    arenaRoomEl.style.display = 'block';
+    arenaReadyBtn.style.display = 'block';
+    arenaReadyBtn.disabled = false;
+    arenaReadyBtn.textContent = "I'm ready";
+    arenaRaceWrapEl.style.display = 'none';
+    arenaResultsEl.style.display = 'none';
+    arenaChatLogEl.innerHTML = '';
+    arenaChatQuickEl.innerHTML = ARENA_QUICK_MESSAGES.map(m => `<button data-quick-msg="${escapeHtml(m)}">${escapeHtml(m)}</button>`).join('');
+    startArenaPolling();
+  }
+
+  function startArenaPolling() {
+    stopArenaPolling();
+    refreshArenaRoom();
+    arenaPollHandle = setInterval(refreshArenaRoom, 1000);
+  }
+
+  function stopArenaPolling() {
+    if (arenaPollHandle) { clearInterval(arenaPollHandle); arenaPollHandle = null; }
+    if (arenaCountdownHandle) { clearInterval(arenaCountdownHandle); arenaCountdownHandle = null; }
+    if (arenaRaceHandle) { clearInterval(arenaRaceHandle); arenaRaceHandle = null; }
+  }
+
+  arenaLeaveBtn.addEventListener('click', async () => {
+    if (currentArenaId) {
+      try { await sb.from('arena_participants').delete().eq('arena_id', currentArenaId).eq('user_id', currentUser.id); } catch (e) {}
+    }
+    enterArenaLobby();
+  });
+
+  arenaCopyInviteBtn.addEventListener('click', async () => {
+    const { data: arena } = await sb.from('arenas').select('code').eq('id', currentArenaId).maybeSingle();
+    if (!arena) return;
+    const url = `${location.origin}${location.pathname}?arena=${arena.code}`;
+    copyToClipboard(url, arenaCopyInviteBtn);
+  });
+
+  arenaReadyBtn.addEventListener('click', async () => {
+    ensureAudioCtx();
+    arenaReadyBtn.disabled = true;
+    arenaReadyBtn.textContent = 'Waiting for others…';
+    await sb.from('arena_participants').update({ ready: true }).eq('arena_id', currentArenaId).eq('user_id', currentUser.id);
+  });
+
+  async function refreshArenaRoom() {
+    if (!currentArenaId || !sb || !currentUser) return;
+
+    const { data: arena, error: arenaErr } = await sb.from('arenas').select('*').eq('id', currentArenaId).maybeSingle();
+    if (arenaErr || !arena) return;
+
+    const { data: participants, error: partErr } = await sb.from('arena_participants').select('*').eq('arena_id', currentArenaId);
+    if (partErr) return;
+
+    arenaRoomCodeEl.textContent = arena.code;
+    arenaScrambleEl.textContent = arena.scramble;
+
+    const ids = participants.map(p => p.user_id);
+    const profileMap = await fetchProfilesByIds(ids);
+
+    // Mark long-idle non-ready participants as disconnected
+    const now = Date.now();
+    for (const p of participants) {
+      if (!p.ready && !p.disconnected && (now - new Date(p.joined_at).getTime()) > 120000) {
+        await sb.from('arena_participants').update({ disconnected: true }).eq('id', p.id).eq('disconnected', false);
+        p.disconnected = true;
+      }
+    }
+
+    const activeParticipants = participants.filter(p => !p.disconnected);
+
+    // Render participant list (only while not yet racing/finished, to avoid flicker during race)
+    if (arena.status === 'waiting') {
+      arenaParticipantsEl.innerHTML = participants.map(p => {
+        const secsLeft = Math.max(0, 120 - Math.floor((now - new Date(p.joined_at).getTime()) / 1000));
+        const statusText = p.disconnected ? 'Disconnected' : (p.ready ? 'Ready' : `Not ready (${secsLeft}s)`);
+        return `
+          <div class="mc-arena-participant-row ${p.disconnected ? 'mc-disconnected' : ''}">
+            <span class="mc-arena-ready-dot ${p.ready ? 'mc-ready' : ''}"></span>
+            <span class="mc-arena-participant-name">${escapeHtml(profileMap[p.user_id]) || 'Unknown'}</span>
+            <span class="mc-arena-participant-status">${statusText}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Trigger countdown once everyone active is ready
+    if (arena.status === 'waiting' && activeParticipants.length > 0 && activeParticipants.every(p => p.ready)) {
+      await sb.from('arenas').update({ status: 'countdown', countdown_start_at: new Date().toISOString() }).eq('id', arena.id).eq('status', 'waiting');
+    }
+
+    if (arena.status === 'countdown' && arenaLastKnownStatus !== 'countdown') {
+      arenaLastKnownStatus = 'countdown';
+      arenaPhase = 'countdown';
+      arenaReadyBtn.style.display = 'none';
+      arenaRaceWrapEl.style.display = 'block';
+      startArenaCountdown(new Date(arena.countdown_start_at).getTime());
+    } else if (arena.status !== 'countdown' && arenaLastKnownStatus === 'countdown') {
+      arenaLastKnownStatus = arena.status;
+    }
+
+    // Safety: if racing too long without finishing, mark disconnected so results aren't stuck forever
+    if ((arena.status === 'countdown' || arena.status === 'running') && arena.countdown_start_at) {
+      const raceStartMs = new Date(arena.countdown_start_at).getTime() + 15000;
+      for (const p of activeParticipants) {
+        if (!p.finished_ms && (now - raceStartMs) > 15 * 60000) {
+          await sb.from('arena_participants').update({ disconnected: true }).eq('id', p.id).eq('disconnected', false);
+        }
+      }
+    }
+
+    // Check race completion
+    const stillActive = participants.filter(p => !p.disconnected);
+    const allFinished = stillActive.length > 0 && stillActive.every(p => p.finished_ms !== null && p.finished_ms !== undefined);
+    if (allFinished && (arena.status === 'running' || arena.status === 'countdown')) {
+      await sb.from('arenas').update({ status: 'finished' }).eq('id', arena.id).neq('status', 'finished');
+    }
+
+    if (allFinished && (arenaPhase === 'racing' || arenaPhase === 'finished-personal' || arenaPhase === 'countdown')) {
+      renderArenaResults(stillActive, profileMap);
+      await maybeCreditWinner(arena, stillActive);
+    }
+  }
+
+  function startArenaCountdown(countdownStartMs) {
+    if (arenaCountdownHandle) clearInterval(arenaCountdownHandle);
+    arenaTimerEl.classList.remove('running');
+    arenaTimerEl.classList.add('inspecting');
+    arenaTimerHintEl.textContent = 'Get ready…';
+
+    function tick() {
+      const remaining = countdownStartMs + 15000 - Date.now();
+      if (remaining > 0) {
+        arenaTimerDigitsEl.textContent = Math.ceil(remaining / 1000).toString();
+      } else {
+        clearInterval(arenaCountdownHandle);
+        arenaCountdownHandle = null;
+        startArenaRace();
+      }
+    }
+    tick();
+    arenaCountdownHandle = setInterval(tick, 100);
+  }
+
+  function startArenaRace() {
+    arenaPhase = 'racing';
+    arenaTimerEl.classList.remove('inspecting');
+    arenaTimerEl.classList.add('running');
+    arenaTimerHintEl.textContent = 'Tap when done!';
+    arenaRaceStartPerf = performance.now();
+    arenaTimerEl.onclick = handleArenaDone;
+    function tick() {
+      arenaTimerDigitsEl.textContent = formatTime(performance.now() - arenaRaceStartPerf);
+    }
+    tick();
+    arenaRaceHandle = setInterval(tick, 30);
+  }
+
+  async function handleArenaDone() {
+    if (arenaPhase !== 'racing') return;
+    arenaPhase = 'finished-personal';
+    clearInterval(arenaRaceHandle);
+    const elapsed = Math.round(performance.now() - arenaRaceStartPerf);
+    arenaTimerEl.onclick = null;
+    arenaTimerEl.classList.remove('running');
+    arenaTimerHintEl.textContent = 'Waiting for others to finish…';
+
+    await sb.from('arena_participants').update({ finished_ms: elapsed, finished_at: new Date().toISOString() })
+      .eq('arena_id', currentArenaId).eq('user_id', currentUser.id);
+
+    const { data: arena } = await sb.from('arenas').select('scramble').eq('id', currentArenaId).maybeSingle();
+    await addSolveArena(elapsed, arena ? arena.scramble : '', currentArenaId);
+  }
+
+  async function addSolveArena(ms, scramble, arenaId) {
+    if (!sb || !currentUser) return;
+    const { error } = await sb.from('solves').insert({
+      user_id: currentUser.id, ms: Math.round(ms), overtime_ms: 0, penalty: 'none',
+      scramble: scramble || '', note: '', arena_id: arenaId
+    });
+    if (error) { console.error('Could not save arena time', error); return; }
+    await fetchSolves();
+    render();
+  }
+
+  function renderArenaResults(finishedParticipants, profileMap) {
+    const sorted = [...finishedParticipants].sort((a, b) => a.finished_ms - b.finished_ms);
+    arenaResultsEl.style.display = 'block';
+    arenaResultsEl.innerHTML = `<h3 class="mc-community-subheading" style="margin-top:0;">Results</h3>` +
+      sorted.map((p, i) => `
+        <div class="mc-arena-result-row ${i === 0 ? 'mc-winner' : ''}">
+          <span class="mc-arena-rank">#${i + 1}</span>
+          <span style="flex:1; font-weight:600;">${escapeHtml(profileMap[p.user_id]) || 'Unknown'}${i === 0 ? ' 🏆' : ''}</span>
+          <span style="font-family:var(--mono); font-weight:700;">${formatTime(p.finished_ms)}</span>
+        </div>
+      `).join('');
+  }
+
+  async function maybeCreditWinner(arena, finishedParticipants) {
+    if (arenaHasCredited) return;
+    const sorted = [...finishedParticipants].sort((a, b) => a.finished_ms - b.finished_ms);
+    const winner = sorted[0];
+    if (!winner || winner.user_id !== currentUser.id) return;
+
+    const { data: claimed } = await sb.from('arenas')
+      .update({ winner_credited: true })
+      .eq('id', arena.id)
+      .eq('winner_credited', false)
+      .select();
+    if (!claimed || claimed.length === 0) { arenaHasCredited = true; return; }
+
+    arenaHasCredited = true;
+    const { data: stats } = await sb.from('user_stats').select('arena_wins').eq('user_id', currentUser.id).maybeSingle();
+    const currentWins = (stats && stats.arena_wins) || 0;
+    await sb.from('user_stats').update({ arena_wins: currentWins + 1 }).eq('user_id', currentUser.id);
+    playPbChime();
+  }
+
+  async function loadArenaChat() {
+    if (!currentArenaId) return;
+    const { data, error } = await sb.from('arena_messages').select('*').eq('arena_id', currentArenaId).order('created_at', { ascending: true }).limit(50);
+    if (error) return;
+    const ids = [...new Set(data.map(m => m.user_id))];
+    const profileMap = await fetchProfilesByIds(ids);
+    arenaChatLogEl.innerHTML = data.map(m => `
+      <div class="mc-arena-chat-msg"><span class="mc-arena-chat-name">${escapeHtml(profileMap[m.user_id]) || 'Unknown'}:</span>${escapeHtml(m.message)}</div>
+    `).join('');
+    arenaChatLogEl.scrollTop = arenaChatLogEl.scrollHeight;
+  }
+
+  async function sendArenaChat(message) {
+    const trimmed = (message || '').trim();
+    if (!trimmed || !currentArenaId) return;
+    await sb.from('arena_messages').insert({ arena_id: currentArenaId, user_id: currentUser.id, message: trimmed.slice(0, 200) });
+    arenaChatInputEl.value = '';
+    loadArenaChat();
+  }
+
+  arenaChatSendBtn.addEventListener('click', () => sendArenaChat(arenaChatInputEl.value));
+  arenaChatInputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendArenaChat(arenaChatInputEl.value); });
+  arenaChatQuickEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-quick-msg]');
+    if (btn) sendArenaChat(btn.dataset.quickMsg);
+  });
+
+  // Poll chat separately at the same cadence as the room refresh
+  setInterval(() => { if (currentArenaId) loadArenaChat(); }, 1500);
 
   // ---------- Cube Solver ----------
 
@@ -2667,6 +3180,7 @@
 
   const urlParams = new URLSearchParams(location.search);
   const sharedScramble = urlParams.get('scramble');
+  let pendingArenaCode = urlParams.get('arena');
   if (sharedScramble && sharedScramble.trim()) {
     setScramble(sharedScramble);
   } else {
