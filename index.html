@@ -2343,26 +2343,40 @@
     return counts;
   }
 
-  function ensureSolverInit() {
-    if (solverInitialized) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        try {
-          if (typeof Cube === 'undefined' || !Cube.initSolver) {
-            reject(new Error('Solver library did not load.'));
-            return;
-          }
+  const SOLVER_WORKER_SOURCE = `
+    importScripts(
+      'https://cdn.jsdelivr.net/gh/ldez/cubejs/lib/cube.js',
+      'https://cdn.jsdelivr.net/gh/ldez/cubejs/lib/solve.js'
+    );
+    let initialized = false;
+    self.onmessage = function(e) {
+      try {
+        if (!initialized) {
           Cube.initSolver();
-          solverInitialized = true;
-          resolve();
-        } catch (err) {
-          reject(err);
+          initialized = true;
         }
-      }, 50);
-    });
+        const cube = Cube.fromString(e.data.faceletStr);
+        if (cube.isSolved()) {
+          self.postMessage({ solved: true });
+          return;
+        }
+        const solution = cube.solve(e.data.maxDepth || 22);
+        self.postMessage({ solution: solution || null });
+      } catch (err) {
+        self.postMessage({ error: (err && err.message) || String(err) });
+      }
+    };
+  `;
+
+  let solverWorker = null;
+  function getSolverWorker() {
+    if (solverWorker) return solverWorker;
+    const blob = new Blob([SOLVER_WORKER_SOURCE], { type: 'application/javascript' });
+    solverWorker = new Worker(URL.createObjectURL(blob));
+    return solverWorker;
   }
 
-  async function handleSolveClick() {
+  function handleSolveClick() {
     const counts = countColors();
     const badColors = Object.keys(FACE_CENTER_COLOR).map(f => FACE_CENTER_COLOR[f])
       .filter(color => counts[color] !== 9);
@@ -2371,28 +2385,64 @@
       return;
     }
 
+    const faceletStr = buildFaceletString();
     solverSolveBtn.disabled = true;
-    solverResultEl.textContent = 'Preparing solver (first time only, a few seconds)…';
+    solverResultEl.textContent = 'Solving… (first time can take a few seconds to warm up)';
+
+    let settled = false;
+    const TIMEOUT_MS = 12000;
+
+    const timeoutHandle = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      solverSolveBtn.disabled = false;
+      solverResultEl.textContent = "This is taking too long, which usually means these colors don't form a state a real cube can actually be in — double-check every sticker against your cube and try again.";
+      if (solverWorker) { solverWorker.terminate(); solverWorker = null; }
+    }, TIMEOUT_MS);
+
+    let worker;
     try {
-      await ensureSolverInit();
-      solverResultEl.textContent = 'Solving…';
-      await new Promise(r => setTimeout(r, 30));
-      const faceletStr = buildFaceletString();
-      const cube = Cube.fromString(faceletStr);
-      if (cube.isSolved()) {
+      worker = getSolverWorker();
+    } catch (err) {
+      clearTimeout(timeoutHandle);
+      solverSolveBtn.disabled = false;
+      solverResultEl.textContent = 'Your browser could not start the solver. Try a different browser.';
+      return;
+    }
+
+    worker.onmessage = (e) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutHandle);
+      solverSolveBtn.disabled = false;
+      const data = e.data || {};
+      if (data.error) {
+        solverResultEl.textContent = "That doesn't look like a solvable cube state — double-check each sticker against your real cube and try again.";
+        return;
+      }
+      if (data.solved) {
         solverResultEl.innerHTML = `<div class="mc-solver-solution">Already solved!</div><div class="mc-solver-movecount">0 moves needed</div>`;
         return;
       }
-      const solution = cube.solve(26);
-      if (!solution) throw new Error('No solution found');
-      const moveCount = solution.split(' ').filter(Boolean).length;
-      solverResultEl.innerHTML = `<div class="mc-solver-solution">${solution}</div><div class="mc-solver-movecount">${moveCount} moves</div>`;
-    } catch (err) {
-      console.error('Solve failed', err);
-      solverResultEl.textContent = "That doesn't look like a solvable cube state — double-check each sticker against your real cube and try again.";
-    } finally {
+      if (!data.solution) {
+        solverResultEl.textContent = "Couldn't find a solution — double-check each sticker against your real cube and try again.";
+        return;
+      }
+      const moveCount = data.solution.split(' ').filter(Boolean).length;
+      solverResultEl.innerHTML = `<div class="mc-solver-solution">${data.solution}</div><div class="mc-solver-movecount">${moveCount} moves</div>`;
+    };
+
+    worker.onerror = (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutHandle);
       solverSolveBtn.disabled = false;
-    }
+      console.error('Solver worker error', err);
+      solverResultEl.textContent = 'Something went wrong loading the solver. Check your connection and try again.';
+      solverWorker = null;
+    };
+
+    worker.postMessage({ faceletStr, maxDepth: 22 });
   }
 
   solverSolveBtn.addEventListener('click', handleSolveClick);
