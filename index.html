@@ -1047,6 +1047,14 @@
       .replace(/'/g, '&#39;');
   }
 
+  function validateDisplayName(raw) {
+    const trimmed = (raw || '').trim();
+    if (!trimmed) return { valid: false, error: 'Choose a display name.' };
+    if (trimmed.length > 30) return { valid: false, error: 'Display name must be 30 characters or fewer.' };
+    if (/[<>"']/.test(trimmed)) return { valid: false, error: 'Display name can\'t contain < > " \' characters.' };
+    return { valid: true, value: trimmed };
+  }
+
   // ---------- Scramble ----------
 
   const FACES = ['U', 'D', 'L', 'R', 'F', 'B'];
@@ -1114,14 +1122,19 @@
       authError.textContent = 'Enter an email and password.';
       return;
     }
-    if (authMode === 'signup' && !authName.value.trim()) {
-      authError.textContent = 'Choose a display name.';
-      return;
+    let validatedName = null;
+    if (authMode === 'signup') {
+      const check = validateDisplayName(authName.value);
+      if (!check.valid) {
+        authError.textContent = check.error;
+        return;
+      }
+      validatedName = check.value;
     }
     authSubmit.disabled = true;
     try {
       if (authMode === 'signup') {
-        pendingDisplayName = authName.value.trim();
+        pendingDisplayName = validatedName;
         const { data, error } = await sb.auth.signUp({ email, password });
         if (error) throw error;
         if (!data.session) {
@@ -1149,8 +1162,10 @@
   accountEditNameBtn.addEventListener('click', async () => {
     const newName = window.prompt('Change your display name:', currentDisplayName || '');
     if (newName === null) return;
-    const trimmed = newName.trim();
-    if (!trimmed || trimmed === currentDisplayName) return;
+    const check = validateDisplayName(newName);
+    if (!check.valid) { window.alert(check.error); return; }
+    const trimmed = check.value;
+    if (trimmed === currentDisplayName) return;
     try {
       const { error } = await sb.from('profiles').update({ display_name: trimmed }).eq('id', currentUser.id);
       if (error) throw error;
@@ -1201,9 +1216,10 @@
   }
 
   async function submitProfileName() {
-    const name = profileNameInput.value.trim();
     profileError.textContent = '';
-    if (!name) { profileError.textContent = 'Enter a display name.'; return; }
+    const check = validateDisplayName(profileNameInput.value);
+    if (!check.valid) { profileError.textContent = check.error; return; }
+    const name = check.value;
     profileSubmitBtn.disabled = true;
     try {
       const { error } = await sb.from('profiles').insert({ id: currentUser.id, display_name: name });
