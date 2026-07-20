@@ -461,6 +461,48 @@
   .mc-solver-instructions {
     font-size: 12.5px; color: var(--muted); margin-bottom: 16px; line-height: 1.5;
   }
+
+  .mc-cube3d-wrap {
+    perspective: 700px;
+    height: 210px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 6px;
+    user-select: none;
+  }
+  .mc-cube3d-scene {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    transform-style: preserve-3d;
+    transform: rotateX(-20deg) rotateY(-30deg);
+    cursor: grab;
+    touch-action: none;
+  }
+  .mc-cube3d-scene.mc-dragging { cursor: grabbing; }
+  .mc-cube3d-face {
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 2px;
+    background: #0a0b0f;
+    padding: 3px;
+    box-sizing: border-box;
+  }
+  .mc-cube3d-sticker { border-radius: 2px; }
+  .mc-cube3d-face.face-F { transform: translateZ(60px); }
+  .mc-cube3d-face.face-B { transform: rotateY(180deg) translateZ(60px); }
+  .mc-cube3d-face.face-R { transform: rotateY(90deg) translateZ(60px); }
+  .mc-cube3d-face.face-L { transform: rotateY(-90deg) translateZ(60px); }
+  .mc-cube3d-face.face-U { transform: rotateX(90deg) translateZ(60px); }
+  .mc-cube3d-face.face-D { transform: rotateX(-90deg) translateZ(60px); }
+  .mc-cube3d-hint {
+    text-align: center; font-size: 11px; color: var(--muted); margin-bottom: 16px;
+  }
   .mc-solver-net {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -911,6 +953,10 @@
         <div class="mc-solver-instructions">
           Tap each square to cycle through colors until it matches your real cube. The center square of each face is fixed (it never moves on a real cube) — you only need to set the other 8 squares per face. When all 54 squares match, hit Solve.
         </div>
+        <div class="mc-cube3d-wrap">
+          <div class="mc-cube3d-scene" id="mc-cube3d-scene"></div>
+        </div>
+        <div class="mc-cube3d-hint">Drag to rotate — checks your entries match your real cube</div>
         <div class="mc-solver-net" id="mc-solver-net"></div>
         <div class="mc-solver-actions">
           <button id="mc-solver-solve">Solve</button>
@@ -2176,7 +2222,69 @@
   const solverSolveBtn = document.getElementById('mc-solver-solve');
   const solverResetBtn = document.getElementById('mc-solver-reset');
   const solverResultEl = document.getElementById('mc-solver-result');
+  const cube3dScene = document.getElementById('mc-cube3d-scene');
   let solverInitialized = false;
+  const cube3dStickerEls = {};
+
+  function buildCube3D() {
+    let html = '';
+    SOLVER_FACES.forEach(face => {
+      html += `<div class="mc-cube3d-face face-${face}">`;
+      for (let i = 0; i < 9; i++) {
+        const color = solverState[face][i];
+        html += `<div class="mc-cube3d-sticker" data-face3d="${face}" data-index3d="${i}" style="background:${COLOR_HEX[color]};"></div>`;
+      }
+      html += `</div>`;
+    });
+    cube3dScene.innerHTML = html;
+    SOLVER_FACES.forEach(face => { cube3dStickerEls[face] = []; });
+    cube3dScene.querySelectorAll('[data-face3d]').forEach(el => {
+      cube3dStickerEls[el.dataset.face3d][parseInt(el.dataset.index3d, 10)] = el;
+    });
+  }
+
+  function updateCube3DSticker(face, index, color) {
+    const el = cube3dStickerEls[face] && cube3dStickerEls[face][index];
+    if (el) el.style.background = COLOR_HEX[color];
+  }
+
+  function refreshCube3DAll() {
+    SOLVER_FACES.forEach(face => {
+      solverState[face].forEach((color, i) => updateCube3DSticker(face, i, color));
+    });
+  }
+
+  // Drag-to-rotate
+  let cube3dRotX = -20, cube3dRotY = -30;
+  let cube3dDragging = false, cube3dLastX = 0, cube3dLastY = 0;
+
+  function applyCube3DRotation() {
+    cube3dScene.style.transform = `rotateX(${cube3dRotX}deg) rotateY(${cube3dRotY}deg)`;
+  }
+
+  cube3dScene.addEventListener('pointerdown', (e) => {
+    cube3dDragging = true;
+    cube3dLastX = e.clientX;
+    cube3dLastY = e.clientY;
+    cube3dScene.classList.add('mc-dragging');
+    cube3dScene.setPointerCapture(e.pointerId);
+  });
+  cube3dScene.addEventListener('pointermove', (e) => {
+    if (!cube3dDragging) return;
+    const dx = e.clientX - cube3dLastX;
+    const dy = e.clientY - cube3dLastY;
+    cube3dRotY += dx * 0.5;
+    cube3dRotX -= dy * 0.5;
+    cube3dLastX = e.clientX;
+    cube3dLastY = e.clientY;
+    applyCube3DRotation();
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(evt => {
+    cube3dScene.addEventListener(evt, () => {
+      cube3dDragging = false;
+      cube3dScene.classList.remove('mc-dragging');
+    });
+  });
 
   function buildSolverNet() {
     let html = '';
@@ -2192,6 +2300,7 @@
     solverNetEl.innerHTML = html;
   }
   buildSolverNet();
+  buildCube3D();
 
   solverNetEl.addEventListener('click', (e) => {
     const sticker = e.target.closest('.mc-solver-sticker');
@@ -2203,6 +2312,7 @@
     const next = COLOR_CYCLE[nextIdx];
     solverState[face][index] = next;
     sticker.style.background = COLOR_HEX[next];
+    updateCube3DSticker(face, index, next);
   });
 
   solverResetBtn.addEventListener('click', () => {
@@ -2211,6 +2321,7 @@
       solverState[face][4] = FACE_CENTER_COLOR[face];
     });
     buildSolverNet();
+    refreshCube3DAll();
     solverResultEl.textContent = '';
   });
 
