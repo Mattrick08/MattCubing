@@ -187,6 +187,18 @@
     cursor: pointer;
   }
   .mc-scramble-refresh:hover { border-color: var(--blue); }
+  .mc-scramble-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--blue);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 15px;
+    padding: 8px 10px;
+    letter-spacing: 0.02em;
+  }
+  .mc-scramble-input:focus { outline: none; }
 
   .mc-notation-guide {
     margin-bottom: 14px;
@@ -442,6 +454,16 @@
   .mc-leaderboard-rank { font-family: var(--mono); font-weight: 700; color: var(--muted); width: 28px; }
   .mc-leaderboard-name { flex: 1; font-size: 13.5px; font-weight: 600; }
   .mc-leaderboard-value { font-family: var(--mono); font-weight: 700; font-size: 14px; color: var(--yellow); }
+  .mc-leaderboard-row-wrap { margin-top: 6px; }
+  .mc-leaderboard-row-wrap .mc-leaderboard-row { margin-top: 0; }
+  .mc-clickable-name { cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+  .mc-clickable-name:hover { color: var(--blue); }
+  .mc-leaderboard-scramble-panel {
+    background: var(--panel-2);
+    border-radius: 0 0 10px 10px;
+    padding: 10px 12px 12px;
+    margin-top: -2px;
+  }
 
   .mc-solver-guide {
     margin-top: 18px;
@@ -712,8 +734,11 @@
       <div id="mc-scramble-content">
         <div class="mc-scramble-label">Scramble</div>
         <div class="mc-scramble-text" id="mc-scramble-text">—</div>
+        <input type="text" class="mc-scramble-input" id="mc-scramble-input" style="display:none;">
       </div>
-      <div style="display:flex; align-items:center; gap:10px;">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <button class="mc-scramble-refresh" id="mc-scramble-edit">Edit</button>
+        <button class="mc-scramble-refresh" id="mc-scramble-copy">Copy</button>
         <button class="mc-scramble-refresh" id="mc-scramble-refresh">New scramble</button>
         <label style="position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0;">
           <input type="checkbox" id="mc-scramble-toggle" checked style="opacity:0; width:0; height:0;">
@@ -869,7 +894,7 @@
         <div class="mc-card mc-history-card">
           <h2>History</h2>
           <div class="mc-filter-bar">
-            <input type="text" id="mc-filter-note" placeholder="Search notes…">
+            <input type="text" id="mc-filter-note" placeholder="Search notes or scrambles…">
             <input type="date" id="mc-filter-from" title="From date">
             <input type="date" id="mc-filter-to" title="To date">
             <button class="mc-filter-clear" id="mc-filter-clear">Clear</button>
@@ -1017,6 +1042,9 @@
   const inSec = document.getElementById('mc-in-sec');
   const inMs = document.getElementById('mc-in-ms');
   const scrambleTextEl = document.getElementById('mc-scramble-text');
+  const scrambleInputEl = document.getElementById('mc-scramble-input');
+  const scrambleEditBtn = document.getElementById('mc-scramble-edit');
+  const scrambleCopyBtn = document.getElementById('mc-scramble-copy');
   const scrambleRefreshBtn = document.getElementById('mc-scramble-refresh');
   const scrambleContentEl = document.getElementById('mc-scramble-content');
   const scrambleToggle = document.getElementById('mc-scramble-toggle');
@@ -1126,7 +1154,49 @@
     scrambleTextEl.textContent = currentScramble;
   }
 
+  function setScramble(value) {
+    currentScramble = value.trim();
+    scrambleTextEl.textContent = currentScramble || '—';
+    if (!useScramble) {
+      useScramble = true;
+      scrambleToggle.checked = true;
+      updateScrambleSwitchUI();
+    }
+  }
+
   scrambleRefreshBtn.addEventListener('click', newScramble);
+
+  scrambleEditBtn.addEventListener('click', () => {
+    scrambleInputEl.value = currentScramble;
+    scrambleTextEl.style.display = 'none';
+    scrambleInputEl.style.display = 'block';
+    scrambleInputEl.focus();
+    scrambleInputEl.select();
+  });
+
+  function commitScrambleEdit() {
+    setScramble(scrambleInputEl.value);
+    scrambleInputEl.style.display = 'none';
+    scrambleTextEl.style.display = 'block';
+  }
+  scrambleInputEl.addEventListener('blur', commitScrambleEdit);
+  scrambleInputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); scrambleInputEl.blur(); }
+  });
+
+  async function copyToClipboard(text, btn) {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      const original = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = original; }, 1500);
+    } catch (err) {
+      console.error('Copy failed', err);
+    }
+  }
+
+  scrambleCopyBtn.addEventListener('click', () => copyToClipboard(currentScramble, scrambleCopyBtn));
 
   // ---------- Auth ----------
 
@@ -1498,8 +1568,12 @@
   // ---------- History ----------
 
   function matchesFilters(s) {
-    const noteQuery = filterNoteInput.value.trim().toLowerCase();
-    if (noteQuery && !(s.note || '').toLowerCase().includes(noteQuery)) return false;
+    const query = filterNoteInput.value.trim().toLowerCase();
+    if (query) {
+      const noteMatch = (s.note || '').toLowerCase().includes(query);
+      const scrambleMatch = (s.scramble || '').toLowerCase().includes(query);
+      if (!noteMatch && !scrambleMatch) return false;
+    }
     const fromVal = filterFromInput.value;
     const toVal = filterToInput.value;
     if (fromVal) {
@@ -1651,6 +1725,7 @@
   async function syncUserStats(stats) {
     if (!sb || !currentUser) return;
     const session = computeSessionStats();
+    const bestScramble = stats.bestIdx >= 0 && solves[stats.bestIdx] ? (solves[stats.bestIdx].scramble || null) : null;
     try {
       await sb.from('user_stats').upsert({
         user_id: currentUser.id,
@@ -1658,6 +1733,7 @@
         avg_ms: stats.avg !== null ? Math.round(stats.avg) : null,
         today_avg_ms: session.todayAvg !== null ? Math.round(session.todayAvg) : null,
         week_avg_ms: session.weekAvg !== null ? Math.round(session.weekAvg) : null,
+        best_scramble: bestScramble,
         solve_count: solves.length,
         updated_at: new Date().toISOString()
       }, { onConflict: 'user_id' });
@@ -1825,6 +1901,10 @@
     }
   });
 
+  let leaderboardData = [];
+  let leaderboardProfileMap = {};
+  let expandedLeaderboardUserId = null;
+
   async function loadLeaderboard() {
     if (!sb || !currentUser) return;
     const metric = leaderboardMetricSelect.value;
@@ -1836,24 +1916,75 @@
       .limit(50);
     if (error) { console.error('Could not load leaderboard', error); return; }
 
+    leaderboardData = data;
     const ids = data.map(row => row.user_id);
-    const profileMap = await fetchProfilesByIds(ids);
+    leaderboardProfileMap = await fetchProfilesByIds(ids);
+    renderLeaderboardList();
+  }
 
-    if (data.length === 0) {
+  function renderLeaderboardList() {
+    const metric = leaderboardMetricSelect.value;
+    if (leaderboardData.length === 0) {
       leaderboardListEl.innerHTML = '<div class="mc-empty">No one has logged times yet.</div>';
       return;
     }
 
-    leaderboardListEl.innerHTML = data.map((row, i) => `
-      <div class="mc-leaderboard-row ${row.user_id === currentUser.id ? 'mc-is-me' : ''}">
-        <span class="mc-leaderboard-rank">#${i + 1}</span>
-        <span class="mc-leaderboard-name">${escapeHtml(profileMap[row.user_id]) || 'Unknown'}</span>
-        <span class="mc-leaderboard-value">${formatTime(row[metric])}</span>
-      </div>
-    `).join('');
+    leaderboardListEl.innerHTML = leaderboardData.map((row, i) => {
+      const isExpanded = expandedLeaderboardUserId === row.user_id;
+      const scramblePanel = isExpanded ? `
+        <div class="mc-leaderboard-scramble-panel">
+          ${row.best_scramble
+            ? `<input type="text" class="mc-scramble-input" readonly value="${escapeHtml(row.best_scramble)}" data-scramble-value="${escapeHtml(row.best_scramble)}">
+               <div style="display:flex; gap:8px; margin-top:8px;">
+                 <button class="mc-scramble-refresh" data-copy-scramble="${row.user_id}">Copy</button>
+                 <button class="mc-scramble-refresh" data-practice-scramble="${row.user_id}">Practice this</button>
+               </div>`
+            : `<div class="mc-empty">No scramble on record for their best time yet.</div>`}
+        </div>
+      ` : '';
+      return `
+        <div class="mc-leaderboard-row-wrap">
+          <div class="mc-leaderboard-row ${row.user_id === currentUser.id ? 'mc-is-me' : ''}">
+            <span class="mc-leaderboard-rank">#${i + 1}</span>
+            <span class="mc-leaderboard-name mc-clickable-name" data-toggle-user="${row.user_id}">${escapeHtml(leaderboardProfileMap[row.user_id]) || 'Unknown'}</span>
+            <span class="mc-leaderboard-value">${formatTime(row[metric])}</span>
+          </div>
+          ${scramblePanel}
+        </div>
+      `;
+    }).join('');
   }
 
-  leaderboardMetricSelect.addEventListener('change', loadLeaderboard);
+  leaderboardListEl.addEventListener('click', (e) => {
+    const nameEl = e.target.closest('[data-toggle-user]');
+    if (nameEl) {
+      const uid = nameEl.dataset.toggleUser;
+      expandedLeaderboardUserId = expandedLeaderboardUserId === uid ? null : uid;
+      renderLeaderboardList();
+      return;
+    }
+    const copyBtn = e.target.closest('[data-copy-scramble]');
+    if (copyBtn) {
+      const input = copyBtn.closest('.mc-leaderboard-scramble-panel').querySelector('[data-scramble-value]');
+      if (input) copyToClipboard(input.dataset.scrambleValue, copyBtn);
+      return;
+    }
+    const practiceBtn = e.target.closest('[data-practice-scramble]');
+    if (practiceBtn) {
+      const input = practiceBtn.closest('.mc-leaderboard-scramble-panel').querySelector('[data-scramble-value]');
+      if (input) {
+        setScramble(input.dataset.scrambleValue);
+        practiceBtn.textContent = 'Set as your scramble!';
+        setTimeout(() => { practiceBtn.textContent = 'Practice this'; }, 1500);
+      }
+      return;
+    }
+  });
+
+  leaderboardMetricSelect.addEventListener('change', () => {
+    expandedLeaderboardUserId = null;
+    loadLeaderboard();
+  });
 
   // ---------- Daily / Weekly challenges ----------
 
