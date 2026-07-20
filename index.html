@@ -2268,6 +2268,10 @@
       await new Promise(r => setTimeout(r, 30));
       const faceletStr = buildFaceletString();
       const cube = Cube.fromString(faceletStr);
+      if (cube.isSolved()) {
+        solverResultEl.innerHTML = `<div class="mc-solver-solution">Already solved!</div><div class="mc-solver-movecount">0 moves needed</div>`;
+        return;
+      }
       const solution = cube.solve(26);
       if (!solution) throw new Error('No solution found');
       const moveCount = solution.split(' ').filter(Boolean).length;
