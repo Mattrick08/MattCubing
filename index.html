@@ -10,6 +10,8 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#ffd400">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/gh/ldez/cubejs/lib/cube.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/ldez/cubejs/lib/solve.js"></script>
 
 <style>
   html, body {
@@ -441,6 +443,70 @@
   .mc-leaderboard-name { flex: 1; font-size: 13.5px; font-weight: 600; }
   .mc-leaderboard-value { font-family: var(--mono); font-weight: 700; font-size: 14px; color: var(--yellow); }
 
+  .mc-solver-guide {
+    margin-top: 18px;
+  }
+  .mc-solver-guide summary {
+    padding: 14px 18px;
+    cursor: pointer;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text);
+    list-style: none;
+  }
+  .mc-solver-guide summary::-webkit-details-marker { display: none; }
+  .mc-solver-guide summary::before { content: "▸ "; color: var(--muted); }
+  .mc-solver-guide[open] summary::before { content: "▾ "; }
+  .mc-solver-body { padding: 0 18px 20px; }
+  .mc-solver-instructions {
+    font-size: 12.5px; color: var(--muted); margin-bottom: 16px; line-height: 1.5;
+  }
+  .mc-solver-net {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 6px;
+    max-width: 460px;
+    margin: 0 auto 18px;
+  }
+  .mc-solver-face {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 2px;
+    background: #0a0b0f;
+    padding: 3px;
+    border-radius: 6px;
+  }
+  .mc-face-U { grid-column: 2; grid-row: 1; }
+  .mc-face-L { grid-column: 1; grid-row: 2; }
+  .mc-face-F { grid-column: 2; grid-row: 2; }
+  .mc-face-R { grid-column: 3; grid-row: 2; }
+  .mc-face-B { grid-column: 4; grid-row: 2; }
+  .mc-face-D { grid-column: 2; grid-row: 3; }
+  .mc-solver-sticker {
+    aspect-ratio: 1;
+    border-radius: 3px;
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .mc-solver-sticker.mc-center { cursor: default; border: 1px solid rgba(255,255,255,0.25); }
+  .mc-solver-actions { display: flex; gap: 10px; justify-content: center; margin-bottom: 14px; }
+  .mc-solver-actions button {
+    background: var(--blue); color: white; border: none; border-radius: 8px;
+    padding: 10px 18px; font-family: var(--body); font-weight: 600; font-size: 13.5px; cursor: pointer;
+  }
+  .mc-solver-actions button:disabled { opacity: 0.6; cursor: not-allowed; }
+  .mc-solver-actions button#mc-solver-reset { background: var(--panel-2); border: 1px solid var(--border); color: var(--text); }
+  .mc-solver-result {
+    text-align: center; font-size: 13px; color: var(--muted); min-height: 20px;
+  }
+  .mc-solver-solution {
+    font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--yellow);
+    word-spacing: 6px; margin-bottom: 6px; line-height: 1.6;
+  }
+  .mc-solver-movecount { font-size: 12px; color: var(--muted); }
+
   .mc-challenge-block { margin-bottom: 24px; }
   .mc-challenge-block:last-child { margin-bottom: 0; }
   .mc-challenge-header {
@@ -838,6 +904,21 @@
         </div>
       </div>
     </div>
+
+    <details class="mc-card mc-solver-guide" id="mc-solver-guide">
+      <summary>Cube Solver<span class="mc-notation-sub">Stuck? Enter your scrambled cube and get a solution.</span></summary>
+      <div class="mc-solver-body">
+        <div class="mc-solver-instructions">
+          Tap each square to cycle through colors until it matches your real cube. The center square of each face is fixed (it never moves on a real cube) — you only need to set the other 8 squares per face. When all 54 squares match, hit Solve.
+        </div>
+        <div class="mc-solver-net" id="mc-solver-net"></div>
+        <div class="mc-solver-actions">
+          <button id="mc-solver-solve">Solve</button>
+          <button id="mc-solver-reset">Reset</button>
+        </div>
+        <div class="mc-solver-result" id="mc-solver-result"></div>
+      </div>
+    </details>
   </div>
 </div>
 
@@ -954,6 +1035,16 @@
     const seconds = Math.floor((total % 60000) / 1000);
     const millis = total % 1000;
     return minutes + ':' + String(seconds).padStart(2, '0') + '.' + String(millis).padStart(3, '0');
+  }
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   // ---------- Scramble ----------
@@ -1414,11 +1505,11 @@
 
       const noteBlock = editingNoteId === s.id
         ? `<div class="mc-note-edit">
-             <input type="text" maxlength="140" placeholder="Add a note…" value="${(s.note || '').replace(/"/g, '&quot;')}" data-note-input="${s.id}">
+             <input type="text" maxlength="140" placeholder="Add a note…" value="${escapeHtml(s.note || '')}" data-note-input="${s.id}">
              <button class="mc-inline-save" data-save-note="${s.id}">✓</button>
              <button class="mc-inline-cancel" data-cancel-note="1">✕</button>
            </div>`
-        : (s.note ? `<div class="mc-history-note">${s.note.replace(/</g, '&lt;')}</div>` : '');
+        : (s.note ? `<div class="mc-history-note">${escapeHtml(s.note)}</div>` : '');
 
       const scrambleBlock = s.scramble
         ? `<details class="mc-history-scramble">
@@ -1569,7 +1660,7 @@
       }
       html += `
         <div class="mc-person-row">
-          <span class="mc-person-name">${p.display_name}</span>
+          <span class="mc-person-name">${escapeHtml(p.display_name)}</span>
           <div class="mc-person-actions">${actionHtml}</div>
         </div>
       `;
@@ -1616,7 +1707,7 @@
       friendRequestsSection.style.display = 'block';
       friendRequestsList.innerHTML = incoming.map(f => `
         <div class="mc-person-row">
-          <span class="mc-person-name">${profileMap[f.requester_id] || 'Unknown'}</span>
+          <span class="mc-person-name">${escapeHtml(profileMap[f.requester_id]) || 'Unknown'}</span>
           <div class="mc-person-actions">
             <button class="mc-person-btn accept" data-accept="${f.id}">Accept</button>
             <button class="mc-person-btn decline" data-decline="${f.id}">Decline</button>
@@ -1635,7 +1726,7 @@
         return `
           <div class="mc-person-row">
             <div>
-              <div class="mc-person-name">${profileMap[otherId] || 'Unknown'}</div>
+              <div class="mc-person-name">${escapeHtml(profileMap[otherId]) || 'Unknown'}</div>
               <div class="mc-person-stats">${personStatsLine(stat)}</div>
             </div>
             <div class="mc-person-actions">
@@ -1694,7 +1785,7 @@
     leaderboardListEl.innerHTML = data.map((row, i) => `
       <div class="mc-leaderboard-row ${row.user_id === currentUser.id ? 'mc-is-me' : ''}">
         <span class="mc-leaderboard-rank">#${i + 1}</span>
-        <span class="mc-leaderboard-name">${profileMap[row.user_id] || 'Unknown'}</span>
+        <span class="mc-leaderboard-name">${escapeHtml(profileMap[row.user_id]) || 'Unknown'}</span>
         <span class="mc-leaderboard-value">${formatTime(row[metric])}</span>
       </div>
     `).join('');
@@ -1824,7 +1915,7 @@
       ? attempts.map((a, i) => `
           <div class="mc-leaderboard-row ${a.user_id === currentUser.id ? 'mc-is-me' : ''}">
             <span class="mc-leaderboard-rank">#${i + 1}</span>
-            <span class="mc-leaderboard-name">${profileMap[a.user_id] || 'Unknown'}</span>
+            <span class="mc-leaderboard-name">${escapeHtml(profileMap[a.user_id]) || 'Unknown'}</span>
             <span class="mc-leaderboard-value">${formatTime(a.ms)}</span>
           </div>
         `).join('')
@@ -2046,6 +2137,134 @@
   [inMin, inSec, inMs].forEach(el => {
     el.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAdd(); });
   });
+
+  // ---------- Cube Solver ----------
+
+  const SOLVER_FACES = ['U', 'L', 'F', 'R', 'B', 'D'];
+  const SOLVER_STRING_ORDER = ['U', 'R', 'F', 'D', 'L', 'B'];
+  const FACE_CENTER_COLOR = { U: 'white', R: 'red', F: 'green', D: 'yellow', L: 'orange', B: 'blue' };
+  const COLOR_TO_LETTER = { white: 'U', red: 'R', green: 'F', yellow: 'D', orange: 'L', blue: 'B' };
+  const COLOR_HEX = {
+    empty: '#3a3c46', white: '#eceae0', yellow: '#ffd400',
+    red: '#d5293a', orange: '#ff8a3d', green: '#12a454', blue: '#2f6bff'
+  };
+  const COLOR_CYCLE = ['empty', 'white', 'yellow', 'red', 'orange', 'green', 'blue'];
+
+  const solverState = {};
+  SOLVER_FACES.forEach(face => {
+    solverState[face] = new Array(9).fill('empty');
+    solverState[face][4] = FACE_CENTER_COLOR[face];
+  });
+
+  const solverNetEl = document.getElementById('mc-solver-net');
+  const solverSolveBtn = document.getElementById('mc-solver-solve');
+  const solverResetBtn = document.getElementById('mc-solver-reset');
+  const solverResultEl = document.getElementById('mc-solver-result');
+  let solverInitialized = false;
+
+  function buildSolverNet() {
+    let html = '';
+    SOLVER_FACES.forEach(face => {
+      html += `<div class="mc-solver-face mc-face-${face}">`;
+      for (let i = 0; i < 9; i++) {
+        const isCenter = i === 4;
+        const color = solverState[face][i];
+        html += `<div class="mc-solver-sticker ${isCenter ? 'mc-center' : ''}" data-face="${face}" data-index="${i}" style="background:${COLOR_HEX[color]};"></div>`;
+      }
+      html += `</div>`;
+    });
+    solverNetEl.innerHTML = html;
+  }
+  buildSolverNet();
+
+  solverNetEl.addEventListener('click', (e) => {
+    const sticker = e.target.closest('.mc-solver-sticker');
+    if (!sticker || sticker.classList.contains('mc-center')) return;
+    const face = sticker.dataset.face;
+    const index = parseInt(sticker.dataset.index, 10);
+    const current = solverState[face][index];
+    const nextIdx = (COLOR_CYCLE.indexOf(current) + 1) % COLOR_CYCLE.length;
+    const next = COLOR_CYCLE[nextIdx];
+    solverState[face][index] = next;
+    sticker.style.background = COLOR_HEX[next];
+  });
+
+  solverResetBtn.addEventListener('click', () => {
+    SOLVER_FACES.forEach(face => {
+      solverState[face] = new Array(9).fill('empty');
+      solverState[face][4] = FACE_CENTER_COLOR[face];
+    });
+    buildSolverNet();
+    solverResultEl.textContent = '';
+  });
+
+  function buildFaceletString() {
+    let str = '';
+    SOLVER_STRING_ORDER.forEach(face => {
+      solverState[face].forEach(color => {
+        str += COLOR_TO_LETTER[color] || '?';
+      });
+    });
+    return str;
+  }
+
+  function countColors() {
+    const counts = { white: 0, yellow: 0, red: 0, orange: 0, green: 0, blue: 0, empty: 0 };
+    SOLVER_FACES.forEach(face => {
+      solverState[face].forEach(color => { counts[color] = (counts[color] || 0) + 1; });
+    });
+    return counts;
+  }
+
+  function ensureSolverInit() {
+    if (solverInitialized) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        try {
+          if (typeof Cube === 'undefined' || !Cube.initSolver) {
+            reject(new Error('Solver library did not load.'));
+            return;
+          }
+          Cube.initSolver();
+          solverInitialized = true;
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      }, 50);
+    });
+  }
+
+  async function handleSolveClick() {
+    const counts = countColors();
+    const badColors = Object.keys(FACE_CENTER_COLOR).map(f => FACE_CENTER_COLOR[f])
+      .filter(color => counts[color] !== 9);
+    if (counts.empty > 0 || badColors.length > 0) {
+      solverResultEl.textContent = `Each color needs to appear exactly 9 times. Currently: white ${counts.white}, yellow ${counts.yellow}, red ${counts.red}, orange ${counts.orange}, green ${counts.green}, blue ${counts.blue}.`;
+      return;
+    }
+
+    solverSolveBtn.disabled = true;
+    solverResultEl.textContent = 'Preparing solver (first time only, a few seconds)…';
+    try {
+      await ensureSolverInit();
+      solverResultEl.textContent = 'Solving…';
+      await new Promise(r => setTimeout(r, 30));
+      const faceletStr = buildFaceletString();
+      const cube = Cube.fromString(faceletStr);
+      const solution = cube.solve(26);
+      if (!solution) throw new Error('No solution found');
+      const moveCount = solution.split(' ').filter(Boolean).length;
+      solverResultEl.innerHTML = `<div class="mc-solver-solution">${solution}</div><div class="mc-solver-movecount">${moveCount} moves</div>`;
+    } catch (err) {
+      console.error('Solve failed', err);
+      solverResultEl.textContent = "That doesn't look like a solvable cube state — double-check each sticker against your real cube and try again.";
+    } finally {
+      solverSolveBtn.disabled = false;
+    }
+  }
+
+  solverSolveBtn.addEventListener('click', handleSolveClick);
 
   // ---------- Init ----------
 
