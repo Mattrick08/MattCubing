@@ -9,6 +9,13 @@
 <link rel="icon" href="icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#ffd400">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/gh/ldez/cubejs/lib/cube.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/ldez/cubejs/lib/solve.js"></script>
@@ -51,6 +58,17 @@
   }
 
   #mc-root * { box-sizing: border-box; }
+
+  #mc-offline-banner {
+    background: var(--orange);
+    color: #2a1400;
+    font-size: 12.5px;
+    font-weight: 600;
+    text-align: center;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+  }
 
   .mc-header {
     display: flex;
@@ -723,6 +741,7 @@
 <body>
 
 <div id="mc-root">
+  <div id="mc-offline-banner" style="display:none;"></div>
   <div class="mc-header">
     <div class="mc-header-left">
       <div class="mc-logo">
@@ -970,6 +989,11 @@
         </div>
         <div id="mc-friend-search-results"></div>
 
+        <div id="mc-friend-activity-section" style="display:none;">
+          <h3 class="mc-community-subheading">Recent activity</h3>
+          <div id="mc-friend-activity-list"></div>
+        </div>
+
         <div id="mc-friend-requests-section" style="display:none;">
           <h3 class="mc-community-subheading">Requests</h3>
           <div id="mc-friend-requests-list"></div>
@@ -977,6 +1001,18 @@
 
         <h3 class="mc-community-subheading">Your friends</h3>
         <div id="mc-friends-list"></div>
+
+        <div id="mc-dm-panel" class="mc-arena-room-card" style="display:none; margin-top:14px;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <h3 class="mc-community-subheading" style="margin:0;">Message <span id="mc-dm-friend-name"></span></h3>
+            <button class="mc-icon-btn" id="mc-dm-close-btn" title="Close">✕</button>
+          </div>
+          <div class="mc-arena-chat-log" id="mc-dm-log" style="margin-top:10px;"></div>
+          <div class="mc-friend-search-row">
+            <input type="text" id="mc-dm-input" placeholder="Type a message…" maxlength="300">
+            <button class="mc-scramble-refresh" id="mc-dm-send-btn">Send</button>
+          </div>
+        </div>
       </div>
 
       <div id="mc-leaderboard-panel" class="mc-community-panel" style="display:none;">
@@ -1036,7 +1072,13 @@
             <input type="text" id="mc-arena-code-input" placeholder="Enter room code…" maxlength="8" style="text-transform:uppercase;">
             <button class="mc-scramble-refresh" id="mc-arena-join-code-btn">Join</button>
           </div>
+          <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); margin-top:6px;">
+            <input type="checkbox" id="mc-arena-spectate-checkbox">
+            Join as spectator (watch only, don't race)
+          </label>
           <div class="mc-arena-error" id="mc-arena-lobby-error"></div>
+          <h3 class="mc-community-subheading">Your recent arenas</h3>
+          <div id="mc-arena-history-list"></div>
           <h3 class="mc-community-subheading">Public arenas</h3>
           <div id="mc-arena-public-list"></div>
         </div>
@@ -1114,6 +1156,85 @@
     : null;
 
   let solves = []; // { id, ms, ts, scramble, penalty, note }
+
+  // ---------- Offline queue ----------
+  const OFFLINE_QUEUE_KEY = 'mattcubing:offline_queue';
+  const offlineBannerEl = document.getElementById('mc-offline-banner');
+
+  function getOfflineQueue() {
+    try {
+      const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  }
+
+  function saveOfflineQueue(queue) {
+    try { localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue)); } catch (e) {}
+  }
+
+  function updateOfflineBanner() {
+    const queue = getOfflineQueue();
+    if (!navigator.onLine) {
+      offlineBannerEl.style.display = 'block';
+      offlineBannerEl.textContent = queue.length > 0
+        ? `You're offline — ${queue.length} solve${queue.length === 1 ? '' : 's'} saved locally, will sync when you're back.`
+        : "You're offline — new solves will save locally and sync automatically once you're back.";
+    } else if (queue.length > 0) {
+      offlineBannerEl.style.display = 'block';
+      offlineBannerEl.textContent = `Syncing ${queue.length} solve${queue.length === 1 ? '' : 's'}…`;
+    } else {
+      offlineBannerEl.style.display = 'none';
+    }
+  }
+
+  function queueOfflineSolve(payload) {
+    const queue = getOfflineQueue();
+    const tempId = 'pending-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+    queue.push({ tempId, payload, createdAt: Date.now() });
+    saveOfflineQueue(queue);
+    updateOfflineBanner();
+    return tempId;
+  }
+
+  function addOptimisticPendingSolve(tempId, payload) {
+    solves.push({
+      id: tempId,
+      ms: payload.ms,
+      ts: Date.now(),
+      scramble: payload.scramble || '',
+      penalty: 'none',
+      note: '',
+      overtimeMs: payload.overtime_ms || 0,
+      arenaId: null,
+      pending: true
+    });
+    render();
+  }
+
+  async function flushOfflineQueue() {
+    if (!navigator.onLine || !sb || !currentUser) { updateOfflineBanner(); return; }
+    const queue = getOfflineQueue();
+    if (queue.length === 0) { updateOfflineBanner(); return; }
+
+    updateOfflineBanner();
+    const remaining = [];
+    for (const item of queue) {
+      try {
+        const { error } = await sb.from('solves').insert(item.payload);
+        if (error) remaining.push(item);
+      } catch (e) {
+        remaining.push(item);
+      }
+    }
+    saveOfflineQueue(remaining);
+    updateOfflineBanner();
+    await fetchSolves();
+    render();
+  }
+
+  window.addEventListener('online', flushOfflineQueue);
+  window.addEventListener('offline', updateOfflineBanner);
+
   let currentUser = null;
   let currentScramble = '';
   let useScramble = true;
@@ -1442,6 +1563,7 @@
       await fetchSolves();
       render();
       loadCommunity();
+      flushOfflineQueue();
     } else {
       showProfileScreen();
     }
@@ -1525,13 +1647,27 @@
   }
 
   async function addSolve(ms, overtimeMs, scramble, flashPb) {
-    if (!sb || !currentUser) return;
+    if (!currentUser) return;
     const roundedMs = Math.round(ms);
     const roundedOvertimeMs = Math.round(overtimeMs || 0);
-    const { error } = await sb.from('solves').insert({
-      user_id: currentUser.id, ms: roundedMs, overtime_ms: roundedOvertimeMs, penalty: 'none', scramble: scramble || '', note: ''
-    });
-    if (error) { console.error('Could not save time', error); return; }
+    const payload = {
+      user_id: currentUser.id, ms: roundedMs, overtime_ms: roundedOvertimeMs,
+      penalty: 'none', scramble: scramble || '', note: ''
+    };
+
+    if (!navigator.onLine || !sb) {
+      const tempId = queueOfflineSolve(payload);
+      addOptimisticPendingSolve(tempId, payload);
+      return;
+    }
+
+    const { error } = await sb.from('solves').insert(payload);
+    if (error) {
+      console.error('Could not save time directly, queuing for later sync', error);
+      const tempId = queueOfflineSolve(payload);
+      addOptimisticPendingSolve(tempId, payload);
+      return;
+    }
     await fetchSolves();
     render();
     if (flashPb) {
@@ -1813,6 +1949,12 @@
         ? `<button class="mc-del-btn mc-del-confirm" data-confirm-delete="${s.id}" title="Click again to confirm">Sure?</button>`
         : `<button class="mc-del-btn" data-delete="${s.id}" title="Delete this time">✕</button>`;
 
+      const actionButtons = s.pending
+        ? `<span class="mc-arena-tag" style="color:var(--orange); background:rgba(255,138,61,0.15); border-color:rgba(255,138,61,0.4);">⏳ Syncing…</span>`
+        : `<button class="mc-icon-btn" data-edit-time="${s.id}" title="Edit time">✎</button>
+           <button class="mc-icon-btn" data-edit-note="${s.id}" title="Add note">🗒</button>
+           ${deleteBtn}`;
+
       html += `
         <div class="mc-history-row">
           <div class="mc-history-main">
@@ -1820,9 +1962,7 @@
             ${timeHtml}
             ${solveBadge}
             ${overtimeBadge}
-            <button class="mc-icon-btn" data-edit-time="${s.id}" title="Edit time">✎</button>
-            <button class="mc-icon-btn" data-edit-note="${s.id}" title="Add note">🗒</button>
-            ${deleteBtn}
+            ${actionButtons}
           </div>
           ${noteBlock}
           ${scrambleBlock}
@@ -1862,6 +2002,8 @@
   const friendSearchInput = document.getElementById('mc-friend-search');
   const friendSearchBtn = document.getElementById('mc-friend-search-btn');
   const friendSearchResults = document.getElementById('mc-friend-search-results');
+  const friendActivitySection = document.getElementById('mc-friend-activity-section');
+  const friendActivityList = document.getElementById('mc-friend-activity-list');
   const friendRequestsSection = document.getElementById('mc-friend-requests-section');
   const friendRequestsList = document.getElementById('mc-friend-requests-list');
   const friendsListEl = document.getElementById('mc-friends-list');
@@ -1872,6 +2014,7 @@
   const arenaPanel = document.getElementById('mc-arena-panel');
 
   function setActiveTab(tab) {
+    if (tab !== 'friends' && typeof closeDm === 'function') closeDm();
     tabFriendsBtn.classList.toggle('active', tab === 'friends');
     tabLeaderboardBtn.classList.toggle('active', tab === 'leaderboard');
     tabChallengesBtn.classList.toggle('active', tab === 'challenges');
@@ -1887,21 +2030,37 @@
   tabChallengesBtn.addEventListener('click', () => { setActiveTab('challenges'); loadChallenge('daily'); loadChallenge('weekly'); });
   tabArenaBtn.addEventListener('click', () => { setActiveTab('arena'); enterArenaLobby(); });
 
+  let lastKnownOwnBestMs = undefined;
+
   async function syncUserStats(stats) {
     if (!sb || !currentUser) return;
     const session = computeSessionStats();
     const bestScramble = stats.bestIdx >= 0 && solves[stats.bestIdx] ? (solves[stats.bestIdx].scramble || null) : null;
+    const newBest = stats.best !== null ? Math.round(stats.best) : null;
+
+    if (lastKnownOwnBestMs === undefined) {
+      try {
+        const { data: existing } = await sb.from('user_stats').select('best_ms').eq('user_id', currentUser.id).maybeSingle();
+        lastKnownOwnBestMs = existing ? existing.best_ms : null;
+      } catch (e) { lastKnownOwnBestMs = null; }
+    }
+
+    const improved = newBest !== null && (lastKnownOwnBestMs === null || lastKnownOwnBestMs === undefined || newBest < lastKnownOwnBestMs);
+    const payload = {
+      user_id: currentUser.id,
+      best_ms: newBest,
+      avg_ms: stats.avg !== null ? Math.round(stats.avg) : null,
+      today_avg_ms: session.todayAvg !== null ? Math.round(session.todayAvg) : null,
+      week_avg_ms: session.weekAvg !== null ? Math.round(session.weekAvg) : null,
+      best_scramble: bestScramble,
+      solve_count: solves.length,
+      updated_at: new Date().toISOString()
+    };
+    if (improved) payload.best_ms_updated_at = new Date().toISOString();
+
     try {
-      await sb.from('user_stats').upsert({
-        user_id: currentUser.id,
-        best_ms: stats.best !== null ? Math.round(stats.best) : null,
-        avg_ms: stats.avg !== null ? Math.round(stats.avg) : null,
-        today_avg_ms: session.todayAvg !== null ? Math.round(session.todayAvg) : null,
-        week_avg_ms: session.weekAvg !== null ? Math.round(session.weekAvg) : null,
-        best_scramble: bestScramble,
-        solve_count: solves.length,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' });
+      await sb.from('user_stats').upsert(payload, { onConflict: 'user_id' });
+      if (improved) lastKnownOwnBestMs = newBest;
     } catch (err) {
       console.error('Could not sync shared stats', err);
     }
@@ -2023,6 +2182,32 @@
     }
 
     if (accepted.length > 0) {
+      const activityItems = accepted
+        .map(f => {
+          const otherId = f.requester_id === currentUser.id ? f.addressee_id : f.requester_id;
+          const stat = statsMap[otherId];
+          return stat && stat.best_ms_updated_at ? { otherId, stat } : null;
+        })
+        .filter(item => item && (Date.now() - new Date(item.stat.best_ms_updated_at).getTime()) < 7 * 24 * 60 * 60 * 1000)
+        .sort((a, b) => new Date(b.stat.best_ms_updated_at) - new Date(a.stat.best_ms_updated_at));
+
+      if (activityItems.length > 0) {
+        friendActivitySection.style.display = 'block';
+        friendActivityList.innerHTML = activityItems.map(item => {
+          const hoursAgo = Math.floor((Date.now() - new Date(item.stat.best_ms_updated_at).getTime()) / 3600000);
+          const whenText = hoursAgo < 1 ? 'just now' : hoursAgo < 24 ? `${hoursAgo}h ago` : `${Math.floor(hoursAgo / 24)}d ago`;
+          return `
+            <div class="mc-person-row">
+              <span>🎉 <strong>${escapeHtml(profileMap[item.otherId]) || 'Unknown'}</strong> set a new PB: ${formatTime(item.stat.best_ms)}</span>
+              <span style="margin-left:auto; color:var(--muted); font-size:11.5px;">${whenText}</span>
+            </div>
+          `;
+        }).join('');
+      } else {
+        friendActivitySection.style.display = 'none';
+        friendActivityList.innerHTML = '';
+      }
+
       friendsListEl.innerHTML = accepted.map(f => {
         const otherId = f.requester_id === currentUser.id ? f.addressee_id : f.requester_id;
         const stat = statsMap[otherId];
@@ -2033,12 +2218,14 @@
               <div class="mc-person-stats">${personStatsLine(stat)}</div>
             </div>
             <div class="mc-person-actions">
+              <button class="mc-person-btn" data-message-friend="${otherId}">Message</button>
               <button class="mc-person-btn remove" data-remove-friend="${f.id}">Remove</button>
             </div>
           </div>
         `;
       }).join('');
     } else {
+      friendActivitySection.style.display = 'none';
       friendsListEl.innerHTML = '<div class="mc-empty">No friends added yet — search above to add some.</div>';
     }
   }
@@ -2063,8 +2250,74 @@
     if (removeBtn) {
       await sb.from('friendships').delete().eq('id', removeBtn.dataset.removeFriend);
       loadFriendsData();
+      return;
+    }
+    const msgBtn = e.target.closest('[data-message-friend]');
+    if (msgBtn) {
+      const friendId = msgBtn.dataset.messageFriend;
+      const friendName = msgBtn.closest('.mc-person-row').querySelector('.mc-person-name').textContent;
+      openDmWith(friendId, friendName);
+      return;
     }
   });
+
+  // ---------- Direct messages ----------
+
+  const dmPanelEl = document.getElementById('mc-dm-panel');
+  const dmFriendNameEl = document.getElementById('mc-dm-friend-name');
+  const dmLogEl = document.getElementById('mc-dm-log');
+  const dmInputEl = document.getElementById('mc-dm-input');
+  const dmSendBtn = document.getElementById('mc-dm-send-btn');
+  const dmCloseBtn = document.getElementById('mc-dm-close-btn');
+
+  let currentDmFriendId = null;
+  let dmPollHandle = null;
+
+  function openDmWith(friendId, friendName) {
+    currentDmFriendId = friendId;
+    dmFriendNameEl.textContent = friendName;
+    dmPanelEl.style.display = 'block';
+    dmPanelEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    loadDmMessages();
+    if (dmPollHandle) clearInterval(dmPollHandle);
+    dmPollHandle = setInterval(loadDmMessages, 2000);
+  }
+
+  function closeDm() {
+    currentDmFriendId = null;
+    dmPanelEl.style.display = 'none';
+    if (dmPollHandle) { clearInterval(dmPollHandle); dmPollHandle = null; }
+  }
+  dmCloseBtn.addEventListener('click', closeDm);
+
+  async function loadDmMessages() {
+    if (!currentDmFriendId || !sb || !currentUser) return;
+    const { data, error } = await sb
+      .from('direct_messages')
+      .select('*')
+      .or(`and(sender_id.eq.${currentUser.id},recipient_id.eq.${currentDmFriendId}),and(sender_id.eq.${currentDmFriendId},recipient_id.eq.${currentUser.id})`)
+      .order('created_at', { ascending: true })
+      .limit(100);
+    if (error) { console.error('Could not load messages', error); return; }
+    dmLogEl.innerHTML = data.map(m => `
+      <div class="mc-arena-chat-msg">
+        <span class="mc-arena-chat-name">${m.sender_id === currentUser.id ? 'You' : escapeHtml(dmFriendNameEl.textContent)}:</span>${escapeHtml(m.message)}
+      </div>
+    `).join('') || '<div class="mc-empty">No messages yet — say hi!</div>';
+    dmLogEl.scrollTop = dmLogEl.scrollHeight;
+  }
+
+  async function sendDm() {
+    const message = dmInputEl.value.trim();
+    if (!message || !currentDmFriendId) return;
+    dmInputEl.value = '';
+    await sb.from('direct_messages').insert({
+      sender_id: currentUser.id, recipient_id: currentDmFriendId, message: message.slice(0, 300)
+    });
+    loadDmMessages();
+  }
+  dmSendBtn.addEventListener('click', sendDm);
+  dmInputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendDm(); });
 
   let leaderboardData = [];
   let leaderboardProfileMap = {};
@@ -2572,10 +2825,11 @@
   const arenaChatSendBtn = document.getElementById('mc-arena-chat-send');
 
   let currentArenaId = null;
+  let arenaIsSpectator = false;
   let arenaPollHandle = null;
   let arenaCountdownHandle = null;
   let arenaRaceHandle = null;
-  let arenaPhase = 'lobby'; // lobby | waiting | countdown | racing | finished-personal
+  let arenaPhase = 'lobby'; // lobby | waiting | spectating | countdown | racing | finished-personal
   let arenaRaceStartPerf = 0;
   let arenaLastKnownStatus = null;
   let arenaHasCredited = false;
@@ -2592,10 +2846,53 @@
   function enterArenaLobby() {
     stopArenaPolling();
     currentArenaId = null;
+    arenaIsSpectator = false;
     arenaPhase = 'lobby';
     arenaRoomEl.style.display = 'none';
     arenaLobbyEl.style.display = 'block';
     loadPublicArenas();
+    loadArenaHistory();
+  }
+
+  const arenaHistoryListEl = document.getElementById('mc-arena-history-list');
+
+  async function loadArenaHistory() {
+    if (!sb || !currentUser) return;
+    const { data: mine, error } = await sb
+      .from('arena_participants')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .not('finished_ms', 'is', null)
+      .order('finished_at', { ascending: false })
+      .limit(15);
+    if (error || !mine || mine.length === 0) {
+      arenaHistoryListEl.innerHTML = '<div class="mc-empty">No arena races yet — join or create one above!</div>';
+      return;
+    }
+
+    const arenaIds = [...new Set(mine.map(m => m.arena_id))];
+    const { data: allParticipants } = await sb.from('arena_participants').select('*').in('arena_id', arenaIds).not('finished_ms', 'is', null);
+    const byArena = {};
+    (allParticipants || []).forEach(p => { (byArena[p.arena_id] = byArena[p.arena_id] || []).push(p); });
+
+    const opponentIds = [...new Set((allParticipants || []).map(p => p.user_id))];
+    const profileMap = await fetchProfilesByIds(opponentIds);
+
+    arenaHistoryListEl.innerHTML = mine.map(m => {
+      const field = (byArena[m.arena_id] || []).slice().sort((a, b) => a.finished_ms - b.finished_ms);
+      const myRank = field.findIndex(p => p.user_id === currentUser.id) + 1;
+      const won = myRank === 1 && field.length > 1;
+      const opponents = field.filter(p => p.user_id !== currentUser.id).map(p => escapeHtml(profileMap[p.user_id]) || 'Unknown').join(', ');
+      const dateStr = new Date(m.finished_at).toLocaleDateString();
+      return `
+        <div class="mc-arena-public-row" style="flex-wrap:wrap;">
+          <span style="font-family:var(--mono); font-weight:700;">${formatTime(m.finished_ms)}</span>
+          <span style="color:${won ? 'var(--yellow)' : 'var(--muted)'}; font-size:12px;">${field.length > 1 ? (won ? '🏆 Won' : `#${myRank} of ${field.length}`) : 'Solo run'}</span>
+          <span style="color:var(--muted); font-size:11.5px;">${dateStr}</span>
+          ${opponents ? `<span style="width:100%; color:var(--muted); font-size:11.5px;">vs ${opponents}</span>` : ''}
+        </div>
+      `;
+    }).join('');
   }
 
   async function loadPublicArenas() {
@@ -2617,22 +2914,27 @@
     const creatorIds = data.map(a => a.created_by);
     const profileMap = await fetchProfilesByIds(creatorIds);
     const arenaIds = data.map(a => a.id);
-    const { data: allParticipants } = await sb.from('arena_participants').select('arena_id').in('arena_id', arenaIds);
+    const { data: allParticipants } = await sb.from('arena_participants').select('arena_id, is_spectator').in('arena_id', arenaIds);
     const countByArena = {};
-    (allParticipants || []).forEach(p => { countByArena[p.arena_id] = (countByArena[p.arena_id] || 0) + 1; });
+    (allParticipants || []).forEach(p => { if (!p.is_spectator) countByArena[p.arena_id] = (countByArena[p.arena_id] || 0) + 1; });
 
     arenaPublicListEl.innerHTML = data.map(a => `
       <div class="mc-arena-public-row">
         <span>Room by ${escapeHtml(profileMap[a.created_by]) || 'Unknown'}</span>
         <span style="color:var(--muted); font-size:11.5px;">${countByArena[a.id] || 0} joined</span>
-        <button class="mc-scramble-refresh" style="margin-left:auto;" data-join-arena="${a.id}">Join</button>
+        <div style="display:flex; gap:6px; margin-left:auto;">
+          <button class="mc-scramble-refresh" data-watch-arena="${a.id}">Watch</button>
+          <button class="mc-scramble-refresh" data-join-arena="${a.id}">Join</button>
+        </div>
       </div>
     `).join('');
   }
 
   arenaPublicListEl.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-join-arena]');
-    if (btn) joinArenaById(btn.dataset.joinArena);
+    const joinBtn = e.target.closest('[data-join-arena]');
+    if (joinBtn) { joinArenaById(joinBtn.dataset.joinArena, false); return; }
+    const watchBtn = e.target.closest('[data-watch-arena]');
+    if (watchBtn) { joinArenaById(watchBtn.dataset.watchArena, true); return; }
   });
 
   async function createArena(isPublic) {
@@ -2648,7 +2950,7 @@
         .single();
       if (!error && data) {
         await sb.from('arena_participants').insert({ arena_id: data.id, user_id: currentUser.id });
-        enterArenaRoom(data.id);
+        enterArenaRoom(data.id, false);
         return;
       }
       attempts++;
@@ -2659,38 +2961,47 @@
   arenaCreatePublicBtn.addEventListener('click', () => createArena(true));
   arenaCreatePrivateBtn.addEventListener('click', () => createArena(false));
 
-  async function joinArenaById(arenaId) {
+  async function joinArenaById(arenaId, asSpectator) {
     arenaLobbyErrorEl.textContent = '';
     const { data: arena, error } = await sb.from('arenas').select('*').eq('id', arenaId).maybeSingle();
     if (error || !arena) { arenaLobbyErrorEl.textContent = 'Room not found.'; return; }
-    if (arena.status !== 'waiting') { arenaLobbyErrorEl.textContent = 'That race has already started.'; return; }
+    if (!asSpectator && arena.status !== 'waiting') { arenaLobbyErrorEl.textContent = 'That race has already started.'; return; }
 
-    const { data: existing } = await sb.from('arena_participants').select('*').eq('arena_id', arenaId).eq('user_id', currentUser.id).maybeSingle();
-    if (!existing) {
-      const { error: joinErr } = await sb.from('arena_participants').insert({ arena_id: arenaId, user_id: currentUser.id });
-      if (joinErr) { arenaLobbyErrorEl.textContent = 'Could not join that room.'; return; }
+    if (asSpectator) {
+      const { data: existingSpec } = await sb.from('arena_participants').select('*').eq('arena_id', arenaId).eq('user_id', currentUser.id).maybeSingle();
+      if (!existingSpec) {
+        await sb.from('arena_participants').insert({ arena_id: arenaId, user_id: currentUser.id, is_spectator: true });
+      }
+    } else {
+      const { data: existing } = await sb.from('arena_participants').select('*').eq('arena_id', arenaId).eq('user_id', currentUser.id).maybeSingle();
+      if (!existing) {
+        const { error: joinErr } = await sb.from('arena_participants').insert({ arena_id: arenaId, user_id: currentUser.id });
+        if (joinErr) { arenaLobbyErrorEl.textContent = 'Could not join that room.'; return; }
+      }
     }
-    enterArenaRoom(arenaId);
+    enterArenaRoom(arenaId, !!asSpectator);
   }
 
   arenaJoinCodeBtn.addEventListener('click', async () => {
     const code = arenaCodeInput.value.trim().toUpperCase();
     if (!code) return;
     arenaLobbyErrorEl.textContent = '';
+    const asSpectator = document.getElementById('mc-arena-spectate-checkbox').checked;
     const { data: arena, error } = await sb.from('arenas').select('*').eq('code', code).maybeSingle();
     if (error || !arena) { arenaLobbyErrorEl.textContent = 'No room found with that code.'; return; }
-    joinArenaById(arena.id);
+    joinArenaById(arena.id, asSpectator);
   });
   arenaCodeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') arenaJoinCodeBtn.click(); });
 
-  function enterArenaRoom(arenaId) {
+  function enterArenaRoom(arenaId, isSpectator) {
     currentArenaId = arenaId;
-    arenaPhase = 'waiting';
+    arenaIsSpectator = !!isSpectator;
+    arenaPhase = arenaIsSpectator ? 'spectating' : 'waiting';
     arenaHasCredited = false;
     arenaLastKnownStatus = null;
     arenaLobbyEl.style.display = 'none';
     arenaRoomEl.style.display = 'block';
-    arenaReadyBtn.style.display = 'block';
+    arenaReadyBtn.style.display = arenaIsSpectator ? 'none' : 'block';
     arenaReadyBtn.disabled = false;
     arenaReadyBtn.textContent = "I'm ready";
     arenaRaceWrapEl.style.display = 'none';
@@ -2757,11 +3068,13 @@
       }
     }
 
-    const activeParticipants = participants.filter(p => !p.disconnected);
+    const activeParticipants = participants.filter(p => !p.disconnected && !p.is_spectator);
+    const spectatorCount = participants.filter(p => p.is_spectator).length;
 
     // Render participant list (only while not yet racing/finished, to avoid flicker during race)
     if (arena.status === 'waiting') {
-      arenaParticipantsEl.innerHTML = participants.map(p => {
+      const racers = participants.filter(p => !p.is_spectator);
+      arenaParticipantsEl.innerHTML = racers.map(p => {
         const secsLeft = Math.max(0, 300 - Math.floor((now - new Date(p.joined_at).getTime()) / 1000));
         const statusText = p.disconnected ? 'Disconnected' : (p.ready ? 'Ready' : `Not ready (${secsLeft}s)`);
         return `
@@ -2771,7 +3084,7 @@
             <span class="mc-arena-participant-status">${statusText}</span>
           </div>
         `;
-      }).join('');
+      }).join('') + (spectatorCount > 0 ? `<div class="mc-arena-participant-status" style="text-align:center; margin-top:4px;">${spectatorCount} watching</div>` : '');
     }
 
     // Trigger countdown once everyone active is ready
@@ -2781,7 +3094,7 @@
 
     if (arena.status === 'countdown' && arenaLastKnownStatus !== 'countdown') {
       arenaLastKnownStatus = 'countdown';
-      arenaPhase = 'countdown';
+      if (!arenaIsSpectator) arenaPhase = 'countdown';
       arenaReadyBtn.style.display = 'none';
       arenaRaceWrapEl.style.display = 'block';
       startArenaCountdown(new Date(arena.countdown_start_at).getTime());
@@ -2800,13 +3113,13 @@
     }
 
     // Check race completion
-    const stillActive = participants.filter(p => !p.disconnected);
+    const stillActive = participants.filter(p => !p.disconnected && !p.is_spectator);
     const allFinished = stillActive.length > 0 && stillActive.every(p => p.finished_ms !== null && p.finished_ms !== undefined);
     if (allFinished && (arena.status === 'running' || arena.status === 'countdown')) {
       await sb.from('arenas').update({ status: 'finished' }).eq('id', arena.id).neq('status', 'finished');
     }
 
-    if (allFinished && !arenaRematchInProgress && (arenaPhase === 'racing' || arenaPhase === 'finished-personal' || arenaPhase === 'countdown')) {
+    if (allFinished && !arenaRematchInProgress && (arenaPhase === 'racing' || arenaPhase === 'finished-personal' || arenaPhase === 'countdown' || arenaPhase === 'spectating')) {
       renderArenaResults(stillActive, profileMap);
       await maybeCreditWinner(arena, stillActive);
     }
@@ -2816,7 +3129,7 @@
     if (arenaCountdownHandle) clearInterval(arenaCountdownHandle);
     arenaTimerEl.classList.remove('running');
     arenaTimerEl.classList.add('inspecting');
-    arenaTimerHintEl.textContent = 'Get ready…';
+    arenaTimerHintEl.textContent = arenaIsSpectator ? 'Race starting soon…' : 'Get ready…';
 
     function tick() {
       const remaining = countdownStartMs + 15000 - Date.now();
@@ -2825,7 +3138,13 @@
       } else {
         clearInterval(arenaCountdownHandle);
         arenaCountdownHandle = null;
-        startArenaRace();
+        if (arenaIsSpectator) {
+          arenaTimerEl.classList.remove('inspecting');
+          arenaTimerDigitsEl.textContent = '●';
+          arenaTimerHintEl.textContent = 'Racers are solving — results appear below.';
+        } else {
+          startArenaRace();
+        }
       }
     }
     tick();
@@ -3226,6 +3545,8 @@
   solverSolveBtn.addEventListener('click', handleSolveClick);
 
   // ---------- Init ----------
+
+  updateOfflineBanner();
 
   const urlParams = new URLSearchParams(location.search);
   const sharedScramble = urlParams.get('scramble');
