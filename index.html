@@ -626,6 +626,60 @@
   }
   .mc-solver-actions button:disabled { opacity: 0.6; cursor: not-allowed; }
   .mc-solver-actions button#mc-solver-reset { background: var(--panel-2); border: 1px solid var(--border); color: var(--text); }
+  .mc-notebook-crumbs {
+    font-size: 12px; color: var(--muted); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+  }
+  .mc-notebook-crumbs button {
+    background: none; border: none; color: var(--blue); cursor: pointer; font-size: 12px; padding: 0;
+    text-decoration: underline; text-decoration-style: dotted;
+  }
+  .mc-notebook-repertoire-row, .mc-notebook-algo-row {
+    display: flex; align-items: center; gap: 10px; background: var(--panel-2); border-radius: 10px;
+    padding: 10px 12px; margin-top: 8px; cursor: pointer;
+  }
+  .mc-notebook-repertoire-row:hover, .mc-notebook-algo-row:hover { border: 1px solid var(--blue); }
+  .mc-notebook-row-name { font-weight: 600; font-size: 13.5px; }
+  .mc-notebook-row-sub { color: var(--muted); font-size: 11.5px; font-family: var(--mono); margin-top: 2px; }
+  .mc-notebook-row-count { margin-left: auto; color: var(--muted); font-size: 11.5px; flex-shrink: 0; }
+  .mc-notebook-delete-x {
+    background: transparent; border: none; color: var(--muted); font-size: 15px; cursor: pointer;
+    padding: 2px 6px; border-radius: 6px; flex-shrink: 0;
+  }
+  .mc-notebook-delete-x:hover { color: var(--red); background: rgba(229,41,63,0.12); }
+
+  .mc-notebook-steps-view {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-height: 420px;
+    overflow-y: auto;
+    padding: 4px;
+  }
+  .mc-notebook-step-card {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    width: 68px;
+    height: 68px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .mc-notebook-step-letter {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 20px;
+  }
+  .mc-notebook-step-arrow {
+    font-size: 20px;
+    line-height: 1;
+    margin-top: 2px;
+  }
+  .mc-notebook-step-arrow.mc-single { color: var(--yellow); }
+  .mc-notebook-step-arrow.mc-wide { color: var(--red); }
+
   .mc-solver-result {
     text-align: center; font-size: 13px; color: var(--muted); min-height: 20px;
   }
@@ -1140,6 +1194,69 @@
           <button id="mc-solver-reset">Reset</button>
         </div>
         <div class="mc-solver-result" id="mc-solver-result"></div>
+      </div>
+    </details>
+
+    <details class="mc-card mc-solver-guide" id="mc-notebook-guide">
+      <summary>Algorithm Notebook<span class="mc-notation-sub">Save, name, and never forget your algorithms.</span></summary>
+      <div class="mc-solver-body">
+
+        <!-- Breadcrumb / back navigation -->
+        <div class="mc-notebook-crumbs" id="mc-notebook-crumbs"></div>
+
+        <!-- View: list of repertoires -->
+        <div id="mc-notebook-view-repertoires">
+          <div class="mc-friend-search-row">
+            <input type="text" id="mc-notebook-new-repertoire-name" placeholder="New repertoire name… (e.g. OLL)">
+            <button class="mc-scramble-refresh" id="mc-notebook-new-repertoire-btn">Create</button>
+          </div>
+          <div id="mc-notebook-repertoire-list" style="margin-top:12px;"></div>
+        </div>
+
+        <!-- View: algorithms inside a repertoire -->
+        <div id="mc-notebook-view-algos" style="display:none;">
+          <button class="mc-add-btn" id="mc-notebook-new-algo-btn" style="margin-top:0;">+ New algorithm</button>
+          <div id="mc-notebook-algo-list" style="margin-top:12px;"></div>
+        </div>
+
+        <!-- View: create a new algorithm by typing moves -->
+        <div id="mc-notebook-view-create" style="display:none;">
+          <div class="mc-auth-field">
+            <label for="mc-notebook-create-name">Name</label>
+            <input type="text" id="mc-notebook-create-name" placeholder="e.g. Sune">
+          </div>
+          <div class="mc-auth-field">
+            <label for="mc-notebook-create-moves">Moves</label>
+            <input type="text" id="mc-notebook-create-moves" placeholder="e.g. R U R' U' R' F R2 U' R' U' R U R' F'" style="font-family:var(--mono);">
+          </div>
+          <div class="mc-auth-field">
+            <label for="mc-notebook-create-desc">Description (optional, can be long)</label>
+            <textarea id="mc-notebook-create-desc" rows="4" placeholder="Notes to help you remember this one…" style="width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:var(--body); font-size:13.5px; padding:10px; resize:vertical;"></textarea>
+          </div>
+          <div class="mc-arena-error" id="mc-notebook-create-error"></div>
+          <button class="mc-btn-primary" id="mc-notebook-create-save-btn">Save algorithm</button>
+        </div>
+
+        <!-- View: viewing/editing one saved algorithm -->
+        <div id="mc-notebook-view-detail" style="display:none;">
+          <div class="mc-auth-field">
+            <label for="mc-notebook-detail-name">Name</label>
+            <input type="text" id="mc-notebook-detail-name">
+          </div>
+          <div class="mc-auth-field">
+            <label for="mc-notebook-detail-desc">Description</label>
+            <textarea id="mc-notebook-detail-desc" rows="4" style="width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:var(--body); font-size:13.5px; padding:10px; resize:vertical;"></textarea>
+          </div>
+          <button class="mc-scramble-refresh" id="mc-notebook-detail-save-btn">Save changes</button>
+
+          <div class="mc-scramble-label" style="margin-top:16px;">Moves</div>
+          <div class="mc-scramble-text" id="mc-notebook-detail-text" style="font-size:15px;"></div>
+
+          <div class="mc-scramble-label" style="margin-top:14px;">Steps</div>
+          <div class="mc-notebook-steps-view" id="mc-notebook-detail-steps"></div>
+
+          <button class="mc-signout-btn" id="mc-notebook-detail-delete-btn" style="margin-top:14px;">Delete this algorithm</button>
+        </div>
       </div>
     </details>
   </div>
@@ -2773,12 +2890,16 @@
     }
   }
 
-  function stopTimerOnPress() {
-    if (timerState === 'running') stopSolveTimer();
+  function handleTimerPressStart() {
+    if (timerState === 'running') {
+      stopSolveTimer();
+      return;
+    }
+    armTimer();
   }
 
-  timerEl.addEventListener('mousedown', (e) => { e.preventDefault(); stopTimerOnPress(); armTimer(); });
-  timerEl.addEventListener('touchstart', (e) => { e.preventDefault(); stopTimerOnPress(); armTimer(); }, { passive: false });
+  timerEl.addEventListener('mousedown', (e) => { e.preventDefault(); handleTimerPressStart(); });
+  timerEl.addEventListener('touchstart', (e) => { e.preventDefault(); handleTimerPressStart(); }, { passive: false });
   window.addEventListener('mouseup', releaseTimer);
   timerEl.addEventListener('touchend', (e) => { e.preventDefault(); releaseTimer(); }, { passive: false });
   timerEl.addEventListener('touchcancel', () => { timerArmed = false; timerEl.classList.remove('armed'); });
@@ -2793,8 +2914,7 @@
     } else if (arenaPhase === 'countdown') {
       // Arena timer starts on its own once the countdown ends — spacebar does nothing here.
     } else {
-      stopTimerOnPress();
-      armTimer();
+      handleTimerPressStart();
     }
   });
   document.addEventListener('keyup', (e) => {
@@ -3578,6 +3698,254 @@
   }
 
   solverSolveBtn.addEventListener('click', handleSolveClick);
+
+  // ---------- Algorithm Notebook ----------
+
+  const notebookCrumbsEl = document.getElementById('mc-notebook-crumbs');
+  const notebookViewRepertoiresEl = document.getElementById('mc-notebook-view-repertoires');
+  const notebookViewAlgosEl = document.getElementById('mc-notebook-view-algos');
+  const notebookViewCreateEl = document.getElementById('mc-notebook-view-create');
+  const notebookViewDetailEl = document.getElementById('mc-notebook-view-detail');
+  const notebookRepertoireListEl = document.getElementById('mc-notebook-repertoire-list');
+  const notebookAlgoListEl = document.getElementById('mc-notebook-algo-list');
+  const notebookNewRepertoireInput = document.getElementById('mc-notebook-new-repertoire-name');
+  const notebookNewRepertoireBtn = document.getElementById('mc-notebook-new-repertoire-btn');
+  const notebookNewAlgoBtn = document.getElementById('mc-notebook-new-algo-btn');
+  const notebookCreateNameInput = document.getElementById('mc-notebook-create-name');
+  const notebookCreateMovesInput = document.getElementById('mc-notebook-create-moves');
+  const notebookCreateDescInput = document.getElementById('mc-notebook-create-desc');
+  const notebookCreateErrorEl = document.getElementById('mc-notebook-create-error');
+  const notebookCreateSaveBtn = document.getElementById('mc-notebook-create-save-btn');
+  const notebookDetailNameInput = document.getElementById('mc-notebook-detail-name');
+  const notebookDetailDescInput = document.getElementById('mc-notebook-detail-desc');
+  const notebookDetailSaveBtn = document.getElementById('mc-notebook-detail-save-btn');
+  const notebookDetailTextEl = document.getElementById('mc-notebook-detail-text');
+  const notebookDetailStepsEl = document.getElementById('mc-notebook-detail-steps');
+  const notebookDetailDeleteBtn = document.getElementById('mc-notebook-detail-delete-btn');
+
+  let notebookRepertoires = [];
+  let notebookAlgosByRepertoire = {};
+  let notebookCurrentRepertoire = null;
+  let notebookCurrentAlgo = null;
+
+  const NOTEBOOK_MOVE_REGEX = /^([UDLRFBudlrfb])(2|')?$/;
+
+  function parseMovesText(text) {
+    const tokens = text.trim().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return { error: 'Type at least one move.' };
+    const steps = [];
+    for (const token of tokens) {
+      const match = token.match(NOTEBOOK_MOVE_REGEX);
+      if (!match) return { error: `"${token}" isn't a move I recognize. Use letters U D L R F B (lowercase for wide), optionally followed by ' or 2.` };
+      const letter = match[1];
+      const suffix = match[2] || '';
+      steps.push({
+        face: letter.toUpperCase(),
+        wide: letter === letter.toLowerCase(),
+        double: suffix === '2',
+        dir: suffix === "'" ? 'ccw' : 'cw'
+      });
+    }
+    return { steps };
+  }
+
+  function moveNotation(step) {
+    const base = step.wide ? step.face.toLowerCase() : step.face;
+    const suffix = step.double ? '2' : (step.dir === 'ccw' ? "'" : '');
+    return base + suffix;
+  }
+
+  function stepsToText(steps) {
+    return steps.map(moveNotation).join(' ');
+  }
+
+  function stepCardHTML(step) {
+    const letter = step.wide ? step.face.toLowerCase() : step.face;
+    const arrowClass = step.wide ? 'mc-wide' : 'mc-single';
+    const arrow = step.double ? (step.dir === 'ccw' ? '↺2' : '↻2') : (step.dir === 'ccw' ? '↺' : '↻');
+    return `
+      <div class="mc-notebook-step-card">
+        <div class="mc-notebook-step-letter">${escapeHtml(letter)}</div>
+        <div class="mc-notebook-step-arrow ${arrowClass}">${arrow}</div>
+      </div>
+    `;
+  }
+
+  function notebookShowView(view) {
+    notebookViewRepertoiresEl.style.display = view === 'repertoires' ? 'block' : 'none';
+    notebookViewAlgosEl.style.display = view === 'algos' ? 'block' : 'none';
+    notebookViewCreateEl.style.display = view === 'create' ? 'block' : 'none';
+    notebookViewDetailEl.style.display = view === 'detail' ? 'block' : 'none';
+    renderNotebookCrumbs(view);
+  }
+
+  function renderNotebookCrumbs(view) {
+    let html = `<button data-crumb="repertoires">Notebook</button>`;
+    if (view === 'algos' || view === 'create' || view === 'detail') {
+      html += ` › <button data-crumb="algos">${escapeHtml(notebookCurrentRepertoire ? notebookCurrentRepertoire.name : '')}</button>`;
+    }
+    if (view === 'create') html += ` › New algorithm`;
+    if (view === 'detail') html += ` › ${escapeHtml(notebookCurrentAlgo ? notebookCurrentAlgo.name : '')}`;
+    notebookCrumbsEl.innerHTML = html;
+  }
+
+  notebookCrumbsEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-crumb]');
+    if (!btn) return;
+    if (btn.dataset.crumb === 'repertoires') { notebookCurrentRepertoire = null; notebookShowView('repertoires'); loadNotebookRepertoires(); }
+    else if (btn.dataset.crumb === 'algos') { notebookShowView('algos'); renderNotebookAlgoList(); }
+  });
+
+  async function loadNotebookRepertoires() {
+    if (!sb || !currentUser) return;
+    const { data, error } = await sb.from('algo_repertoires').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: true });
+    if (error) { console.error('Could not load repertoires', error); return; }
+    notebookRepertoires = data;
+
+    const { data: allAlgos } = await sb.from('algo_entries').select('id, repertoire_id, name, steps').eq('user_id', currentUser.id);
+    notebookAlgosByRepertoire = {};
+    (allAlgos || []).forEach(a => { (notebookAlgosByRepertoire[a.repertoire_id] = notebookAlgosByRepertoire[a.repertoire_id] || []).push(a); });
+
+    renderNotebookRepertoireList();
+  }
+
+  function renderNotebookRepertoireList() {
+    if (notebookRepertoires.length === 0) {
+      notebookRepertoireListEl.innerHTML = '<div class="mc-empty">No repertoires yet — create one above (e.g. "OLL", "PLL").</div>';
+      return;
+    }
+    notebookRepertoireListEl.innerHTML = notebookRepertoires.map(r => {
+      const count = (notebookAlgosByRepertoire[r.id] || []).length;
+      return `
+        <div class="mc-notebook-repertoire-row" data-open-repertoire="${r.id}">
+          <span class="mc-notebook-row-name">${escapeHtml(r.name)}</span>
+          <span class="mc-notebook-row-count">${count} algo${count === 1 ? '' : 's'}</span>
+          <button class="mc-notebook-delete-x" data-delete-repertoire="${r.id}" title="Delete repertoire">✕</button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  notebookNewRepertoireBtn.addEventListener('click', async () => {
+    const name = notebookNewRepertoireInput.value.trim();
+    if (!name || !currentUser) return;
+    const { error } = await sb.from('algo_repertoires').insert({ user_id: currentUser.id, name });
+    if (error) { console.error('Could not create repertoire', error); return; }
+    notebookNewRepertoireInput.value = '';
+    loadNotebookRepertoires();
+  });
+  notebookNewRepertoireInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') notebookNewRepertoireBtn.click(); });
+
+  notebookRepertoireListEl.addEventListener('click', async (e) => {
+    const delBtn = e.target.closest('[data-delete-repertoire]');
+    if (delBtn) {
+      if (!window.confirm('Delete this repertoire and every algorithm inside it?')) return;
+      await sb.from('algo_repertoires').delete().eq('id', delBtn.dataset.deleteRepertoire);
+      loadNotebookRepertoires();
+      return;
+    }
+    const openRow = e.target.closest('[data-open-repertoire]');
+    if (openRow) {
+      const rep = notebookRepertoires.find(r => r.id === openRow.dataset.openRepertoire);
+      if (!rep) return;
+      notebookCurrentRepertoire = rep;
+      notebookShowView('algos');
+      renderNotebookAlgoList();
+    }
+  });
+
+  function renderNotebookAlgoList() {
+    const algos = (notebookAlgosByRepertoire[notebookCurrentRepertoire.id] || []);
+    if (algos.length === 0) {
+      notebookAlgoListEl.innerHTML = '<div class="mc-empty">No algorithms yet — add one above.</div>';
+      return;
+    }
+    notebookAlgoListEl.innerHTML = algos.map(a => `
+      <div class="mc-notebook-algo-row" data-open-algo="${a.id}">
+        <div>
+          <div class="mc-notebook-row-name">${escapeHtml(a.name)}</div>
+          <div class="mc-notebook-row-sub">${escapeHtml(stepsToText(a.steps || []))}</div>
+        </div>
+        <button class="mc-notebook-delete-x" data-delete-algo="${a.id}" title="Delete">✕</button>
+      </div>
+    `).join('');
+  }
+
+  notebookNewAlgoBtn.addEventListener('click', () => {
+    notebookCreateNameInput.value = '';
+    notebookCreateMovesInput.value = '';
+    notebookCreateDescInput.value = '';
+    notebookCreateErrorEl.textContent = '';
+    notebookShowView('create');
+  });
+
+  notebookAlgoListEl.addEventListener('click', async (e) => {
+    const delBtn = e.target.closest('[data-delete-algo]');
+    if (delBtn) {
+      if (!window.confirm('Delete this algorithm?')) return;
+      await sb.from('algo_entries').delete().eq('id', delBtn.dataset.deleteAlgo);
+      await loadNotebookRepertoires();
+      renderNotebookAlgoList();
+      return;
+    }
+    const openRow = e.target.closest('[data-open-algo]');
+    if (openRow) {
+      const { data: full, error } = await sb.from('algo_entries').select('*').eq('id', openRow.dataset.openAlgo).maybeSingle();
+      if (error || !full) return;
+      notebookCurrentAlgo = full;
+      notebookDetailNameInput.value = full.name;
+      notebookDetailDescInput.value = full.description || '';
+      notebookDetailTextEl.textContent = stepsToText(full.steps || []);
+      notebookDetailStepsEl.innerHTML = (full.steps || []).map(stepCardHTML).join('');
+      notebookShowView('detail');
+    }
+  });
+
+  notebookCreateSaveBtn.addEventListener('click', async () => {
+    const name = notebookCreateNameInput.value.trim() || 'Untitled';
+    const movesText = notebookCreateMovesInput.value.trim();
+    const description = notebookCreateDescInput.value.trim();
+    notebookCreateErrorEl.textContent = '';
+
+    const parsed = parseMovesText(movesText);
+    if (parsed.error) { notebookCreateErrorEl.textContent = parsed.error; return; }
+
+    const { error } = await sb.from('algo_entries').insert({
+      repertoire_id: notebookCurrentRepertoire.id,
+      user_id: currentUser.id,
+      name, description,
+      steps: parsed.steps
+    });
+    if (error) { notebookCreateErrorEl.textContent = 'Could not save — try again.'; return; }
+
+    await loadNotebookRepertoires();
+    notebookShowView('algos');
+    renderNotebookAlgoList();
+  });
+
+  notebookDetailSaveBtn.addEventListener('click', async () => {
+    if (!notebookCurrentAlgo) return;
+    const name = notebookDetailNameInput.value.trim() || 'Untitled';
+    const description = notebookDetailDescInput.value.trim();
+    await sb.from('algo_entries').update({ name, description }).eq('id', notebookCurrentAlgo.id);
+    notebookCurrentAlgo.name = name;
+    notebookCurrentAlgo.description = description;
+    await loadNotebookRepertoires();
+    renderNotebookCrumbs('detail');
+  });
+
+  notebookDetailDeleteBtn.addEventListener('click', async () => {
+    if (!notebookCurrentAlgo) return;
+    if (!window.confirm('Delete this algorithm?')) return;
+    await sb.from('algo_entries').delete().eq('id', notebookCurrentAlgo.id);
+    await loadNotebookRepertoires();
+    notebookShowView('algos');
+    renderNotebookAlgoList();
+  });
+
+  document.getElementById('mc-notebook-guide').addEventListener('toggle', function () {
+    if (this.open && notebookRepertoires.length === 0) loadNotebookRepertoires();
+  });
 
   // ---------- Init ----------
 
