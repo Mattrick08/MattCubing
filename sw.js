@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mattcubing-shell-v1';
+const CACHE_NAME = 'mattcubing-shell-v2';
 const SHELL_FILES = [
   './',
   './index.html',
@@ -23,24 +23,25 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Cache-first for same-origin app-shell files.
-// Everything else (Supabase API calls, CDN scripts) goes straight to the network —
-// this service worker only makes the app itself loadable offline, not live data.
+// Network-first for same-origin app-shell files: always try to get the latest
+// version first, and only fall back to the cached copy if the network fails
+// (offline). This keeps installed/PWA users from getting stuck on an old
+// cached index.html forever — the old cache-first strategy meant any update
+// after install would never be seen by people who'd already installed the app.
+// Everything cross-origin (Supabase API calls, CDN scripts) goes straight to
+// the network untouched, same as before.
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin) return; // let cross-origin requests pass through untouched
+  if (url.origin !== self.location.origin) return;
   if (event.request.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
-          return response;
-        })
-        .catch(() => caches.match('./index.html'));
-    })
+    fetch(event.request)
+      .then((response) => {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
+        return response;
+      })
+      .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html')))
   );
 });
