@@ -2928,6 +2928,48 @@
     releaseTimer();
   });
 
+  // ---------- Two-letter-key combo (alternative to spacebar) ----------
+  // Holding any two letter keys down together arms/launches the timer the same
+  // way holding spacebar does. Numbers, punctuation, and modifier keys don't count —
+  // only physical letter keys (A-Z), regardless of keyboard layout.
+
+  const letterKeysHeld = new Set();
+  let letterComboActive = false;
+  const LETTER_CODE_RE = /^Key[A-Z]$/;
+
+  document.addEventListener('keydown', (e) => {
+    if (!LETTER_CODE_RE.test(e.code)) return;
+    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+    letterKeysHeld.add(e.code);
+    if (letterComboActive || letterKeysHeld.size < 2) return;
+    e.preventDefault();
+    letterComboActive = true;
+    if (arenaPhase === 'racing') {
+      handleArenaDone();
+    } else if (arenaPhase === 'countdown') {
+      // Arena timer starts on its own once the countdown ends — the combo does nothing here.
+    } else {
+      handleTimerPressStart();
+    }
+  });
+
+  document.addEventListener('keyup', (e) => {
+    if (!LETTER_CODE_RE.test(e.code)) return;
+    letterKeysHeld.delete(e.code);
+    if (!letterComboActive || letterKeysHeld.size >= 2) return;
+    letterComboActive = false;
+    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+    if (arenaPhase === 'racing' || arenaPhase === 'countdown') return;
+    releaseTimer();
+  });
+
+  // If the window/tab loses focus mid-hold, the browser may never send the
+  // matching keyup — reset so a stuck key doesn't lock out future combos.
+  window.addEventListener('blur', () => {
+    letterKeysHeld.clear();
+    letterComboActive = false;
+  });
+
   // ---------- Manual entry ----------
 
   function shakeInvalid(el) {
