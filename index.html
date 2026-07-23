@@ -1210,6 +1210,7 @@
             <input type="text" id="mc-notebook-new-repertoire-name" placeholder="New repertoire name… (e.g. OLL)">
             <button class="mc-scramble-refresh" id="mc-notebook-new-repertoire-btn">Create</button>
           </div>
+          <div class="mc-arena-error" id="mc-notebook-repertoire-error"></div>
           <div id="mc-notebook-repertoire-list" style="margin-top:12px;"></div>
         </div>
 
@@ -3710,6 +3711,7 @@
   const notebookAlgoListEl = document.getElementById('mc-notebook-algo-list');
   const notebookNewRepertoireInput = document.getElementById('mc-notebook-new-repertoire-name');
   const notebookNewRepertoireBtn = document.getElementById('mc-notebook-new-repertoire-btn');
+  const notebookRepertoireErrorEl = document.getElementById('mc-notebook-repertoire-error');
   const notebookNewAlgoBtn = document.getElementById('mc-notebook-new-algo-btn');
   const notebookCreateNameInput = document.getElementById('mc-notebook-create-name');
   const notebookCreateMovesInput = document.getElementById('mc-notebook-create-moves');
@@ -3827,10 +3829,18 @@
   }
 
   notebookNewRepertoireBtn.addEventListener('click', async () => {
+    notebookRepertoireErrorEl.textContent = '';
     const name = notebookNewRepertoireInput.value.trim();
-    if (!name || !currentUser) return;
+    if (!name) { notebookRepertoireErrorEl.textContent = 'Give the repertoire a name first.'; return; }
+    if (!sb || !currentUser) { notebookRepertoireErrorEl.textContent = 'Not signed in — sign in and try again.'; return; }
+    notebookNewRepertoireBtn.disabled = true;
     const { error } = await sb.from('algo_repertoires').insert({ user_id: currentUser.id, name });
-    if (error) { console.error('Could not create repertoire', error); return; }
+    notebookNewRepertoireBtn.disabled = false;
+    if (error) {
+      console.error('Could not create repertoire', error);
+      notebookRepertoireErrorEl.textContent = 'Could not save — ' + (error.message || 'try again.');
+      return;
+    }
     notebookNewRepertoireInput.value = '';
     loadNotebookRepertoires();
   });
