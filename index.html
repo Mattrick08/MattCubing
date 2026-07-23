@@ -1250,7 +1250,10 @@
           </div>
           <button class="mc-scramble-refresh" id="mc-notebook-detail-save-btn">Save changes</button>
 
-          <div class="mc-scramble-label" style="margin-top:16px;">Moves</div>
+          <div class="mc-scramble-label" style="margin-top:16px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+            <span>Moves</span>
+            <button class="mc-scramble-refresh" id="mc-notebook-detail-copy-btn" style="margin-top:0;">Copy</button>
+          </div>
           <div class="mc-scramble-text" id="mc-notebook-detail-text" style="font-size:15px;"></div>
 
           <div class="mc-scramble-label" style="margin-top:14px;">Steps</div>
@@ -3722,6 +3725,7 @@
   const notebookDetailDescInput = document.getElementById('mc-notebook-detail-desc');
   const notebookDetailSaveBtn = document.getElementById('mc-notebook-detail-save-btn');
   const notebookDetailTextEl = document.getElementById('mc-notebook-detail-text');
+  const notebookDetailCopyBtn = document.getElementById('mc-notebook-detail-copy-btn');
   const notebookDetailStepsEl = document.getElementById('mc-notebook-detail-steps');
   const notebookDetailDeleteBtn = document.getElementById('mc-notebook-detail-delete-btn');
 
@@ -3790,6 +3794,11 @@
     if (view === 'detail') html += ` › ${escapeHtml(notebookCurrentAlgo ? notebookCurrentAlgo.name : '')}`;
     notebookCrumbsEl.innerHTML = html;
   }
+
+  notebookDetailCopyBtn.addEventListener('click', () => {
+    if (!notebookCurrentAlgo) return;
+    copyToClipboard(stepsToText(notebookCurrentAlgo.steps || []), notebookDetailCopyBtn);
+  });
 
   notebookCrumbsEl.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-crumb]');
