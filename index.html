@@ -301,6 +301,7 @@
   .mc-timer:active { transform: scale(0.99); }
   .mc-timer.inspecting { background: var(--orange); color: #2a1400; }
   .mc-timer.running { background: var(--green); color: #06180f; }
+  .mc-timer.armed { background: var(--red); color: #ffffff; transition: background 0.1s ease; }
   .mc-timer-digits {
     font-family: var(--mono);
     font-weight: 700;
@@ -907,7 +908,7 @@
           <span class="mc-timer-solve-value" id="mc-timer-solve-value"></span>
           <span class="mc-timer-overtime-value" id="mc-timer-overtime-value"></span>
         </div>
-        <div class="mc-timer-hint" id="mc-timer-hint">Tap or press space to start</div>
+        <div class="mc-timer-hint" id="mc-timer-hint">Hold, then release to start</div>
       </div>
     </div>
 
@@ -1307,7 +1308,7 @@
     useInspection = inspectionToggle.checked;
     updateInspectionSwitchUI();
     if (timerState === 'idle') {
-      hintEl.textContent = useInspection ? 'Tap or press space to start inspection' : 'Tap or press space to start';
+      hintEl.textContent = useInspection ? 'Hold, then release to start inspection' : 'Hold, then release to start';
     }
   });
   updateInspectionSwitchUI();
@@ -2684,7 +2685,7 @@
     inspectionStart = performance.now();
     timerEl.classList.remove('running');
     timerEl.classList.add('inspecting');
-    hintEl.textContent = 'Tap or press space when ready to solve';
+    hintEl.textContent = 'Hold, then release when ready to solve';
     inspectionHandle = setInterval(inspectionTick, 30);
     inspectionTick();
   }
@@ -2710,7 +2711,7 @@
     timerState = 'running';
     timerEl.classList.remove('inspecting');
     timerEl.classList.add('running');
-    hintEl.textContent = 'Tap or press space to stop';
+    hintEl.textContent = 'Press or tap to stop';
     solveStart = performance.now();
     solveHandle = setInterval(solveTick, 30);
   }
@@ -2727,7 +2728,7 @@
     const total = raw + overtime;
     timerState = 'idle';
     timerEl.classList.remove('running', 'inspecting');
-    hintEl.textContent = 'Tap or press space to start';
+    hintEl.textContent = 'Hold, then release to start';
     digitsEl.textContent = formatTime(total);
     if (overtime > 0) {
       timerSolveEl.textContent = 'Solve ' + formatTime(raw);
@@ -2742,31 +2743,65 @@
     newScramble();
   }
 
-  function handleTimerPress() {
+  let timerArmed = false;
+
+  function armTimer() {
+    if (timerState === 'running') return; // handled separately — pressing down stops immediately
+    if (timerArmed) return;
+    timerArmed = true;
     ensureAudioCtx();
+    timerEl.classList.add('armed');
     if (timerState === 'idle') {
       timerSolveEl.textContent = '';
       timerOvertimeEl.textContent = '';
-      if (useInspection) startInspection();
-      else { pendingOvertimeMs = 0; startSolveTimer(); }
+      hintEl.textContent = 'Release to start' + (useInspection ? ' inspection' : '');
+    } else if (timerState === 'inspecting') {
+      hintEl.textContent = 'Release to start solving';
     }
-    else if (timerState === 'inspecting') endInspectionAndStart();
-    else if (timerState === 'running') stopSolveTimer();
   }
 
-  timerEl.addEventListener('click', handleTimerPress);
+  function releaseTimer() {
+    if (timerState === 'running') return;
+    if (!timerArmed) return;
+    timerArmed = false;
+    timerEl.classList.remove('armed');
+    if (timerState === 'idle') {
+      if (useInspection) startInspection();
+      else { pendingOvertimeMs = 0; startSolveTimer(); }
+    } else if (timerState === 'inspecting') {
+      endInspectionAndStart();
+    }
+  }
+
+  function stopTimerOnPress() {
+    if (timerState === 'running') stopSolveTimer();
+  }
+
+  timerEl.addEventListener('mousedown', (e) => { e.preventDefault(); stopTimerOnPress(); armTimer(); });
+  timerEl.addEventListener('touchstart', (e) => { e.preventDefault(); stopTimerOnPress(); armTimer(); }, { passive: false });
+  window.addEventListener('mouseup', releaseTimer);
+  timerEl.addEventListener('touchend', (e) => { e.preventDefault(); releaseTimer(); }, { passive: false });
+  timerEl.addEventListener('touchcancel', () => { timerArmed = false; timerEl.classList.remove('armed'); });
+
   document.addEventListener('keydown', (e) => {
     if (e.code !== 'Space') return;
     if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
     e.preventDefault();
+    if (e.repeat) return; // ignore OS key-repeat while held — we only care about the initial press
     if (arenaPhase === 'racing') {
       handleArenaDone();
     } else if (arenaPhase === 'countdown') {
-      // Arena timer starts on its own once the countdown ends — spacebar does nothing here,
-      // and deliberately does NOT fall through to the practice timer below.
+      // Arena timer starts on its own once the countdown ends — spacebar does nothing here.
     } else {
-      handleTimerPress();
+      stopTimerOnPress();
+      armTimer();
     }
+  });
+  document.addEventListener('keyup', (e) => {
+    if (e.code !== 'Space') return;
+    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+    if (arenaPhase === 'racing' || arenaPhase === 'countdown') return;
+    releaseTimer();
   });
 
   // ---------- Manual entry ----------
