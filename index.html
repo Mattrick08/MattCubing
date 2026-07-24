@@ -356,6 +356,8 @@
   .mc-stat.latest { border-left-color: var(--green); }
   .mc-stat.today { border-left-color: var(--cyan); }
   .mc-stat.week { border-left-color: var(--purple); }
+  .mc-stat.ao5 { border-left-color: var(--orange); }
+  .mc-stat.ao12 { border-left-color: var(--white-sq); }
   .mc-stat-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
   .mc-stat-value { font-family: var(--mono); font-weight: 700; font-size: 20px; }
   .mc-stat-value.mc-stat-empty { font-size: 13px; color: var(--muted); font-weight: 500; }
@@ -791,6 +793,50 @@
   .mc-note-edit input:focus { outline: none; border-color: var(--blue); }
 
   .mc-chart-svg { width: 100%; height: auto; display: block; }
+
+  .mc-chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .mc-chart-header h2 { margin: 0; }
+  .mc-chart-lines-toggle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .mc-chart-line-pill {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 10px 4px 8px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+  }
+  .mc-chart-line-pill input { display: none; }
+  .mc-chart-line-pill .mc-chart-line-swatch {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    background: var(--muted); opacity: 0.5;
+  }
+  .mc-chart-line-pill.mc-active { color: var(--text); border-color: var(--border-strong, rgba(255,255,255,0.22)); }
+  .mc-chart-line-pill.mc-active .mc-chart-line-swatch { opacity: 1; }
+  .mc-chart-line-pill[data-line="today"].mc-active { color: var(--cyan); }
+  .mc-chart-line-pill[data-line="week"].mc-active { color: var(--purple); }
+  .mc-chart-line-pill[data-line="ao5"].mc-active { color: var(--orange); }
+  .mc-chart-line-pill[data-line="ao12"].mc-active { color: var(--white-sq); }
+  .mc-chart-line-pill[data-line="today"] .mc-chart-line-swatch { background: var(--cyan); }
+  .mc-chart-line-pill[data-line="week"] .mc-chart-line-swatch { background: var(--purple); }
+  .mc-chart-line-pill[data-line="ao5"] .mc-chart-line-swatch { background: var(--orange); }
+  .mc-chart-line-pill[data-line="ao12"] .mc-chart-line-swatch { background: var(--white-sq); }
 </style>
 </head>
 <body>
@@ -969,7 +1015,23 @@
 
     <div class="mc-layout">
       <div class="mc-card mc-chart-card">
-        <h2>Time per trial</h2>
+        <div class="mc-chart-header">
+          <h2>Time per trial</h2>
+          <div class="mc-chart-lines-toggle" id="mc-chart-lines-toggle">
+            <label class="mc-chart-line-pill" data-line="today">
+              <input type="checkbox" id="mc-chart-line-today"><span class="mc-chart-line-swatch"></span>Today's avg
+            </label>
+            <label class="mc-chart-line-pill" data-line="week">
+              <input type="checkbox" id="mc-chart-line-week"><span class="mc-chart-line-swatch"></span>Week's avg
+            </label>
+            <label class="mc-chart-line-pill" data-line="ao5">
+              <input type="checkbox" id="mc-chart-line-ao5"><span class="mc-chart-line-swatch"></span>Ao5
+            </label>
+            <label class="mc-chart-line-pill" data-line="ao12">
+              <input type="checkbox" id="mc-chart-line-ao12"><span class="mc-chart-line-swatch"></span>Ao12
+            </label>
+          </div>
+        </div>
         <div id="mc-chart-container"></div>
       </div>
 
@@ -1929,6 +1991,36 @@
 
   // ---------- Chart ----------
 
+  const CHART_LINES_KEY = 'mattcubing_chart_lines';
+  let chartLineToggles = { today: false, week: false, ao5: false, ao12: false };
+  try {
+    const saved = JSON.parse(localStorage.getItem(CHART_LINES_KEY) || '{}');
+    chartLineToggles = { ...chartLineToggles, ...saved };
+  } catch (e) {}
+
+  const chartLinesToggleEl = document.getElementById('mc-chart-lines-toggle');
+
+  function renderChartLineToggleUI() {
+    Object.keys(chartLineToggles).forEach(key => {
+      const checkbox = document.getElementById(`mc-chart-line-${key}`);
+      const pill = chartLinesToggleEl.querySelector(`[data-line="${key}"]`);
+      if (checkbox) checkbox.checked = chartLineToggles[key];
+      if (pill) pill.classList.toggle('mc-active', chartLineToggles[key]);
+    });
+  }
+  renderChartLineToggleUI();
+
+  chartLinesToggleEl.addEventListener('change', (e) => {
+    const checkbox = e.target.closest('input[type="checkbox"]');
+    if (!checkbox) return;
+    const pill = checkbox.closest('[data-line]');
+    const key = pill.dataset.line;
+    chartLineToggles[key] = checkbox.checked;
+    try { localStorage.setItem(CHART_LINES_KEY, JSON.stringify(chartLineToggles)); } catch (e) {}
+    renderChartLineToggleUI();
+    buildChart(computeStats());
+  });
+
   function axisLabel(ms) {
     const totalSec = ms / 1000;
     if (totalSec < 60) return totalSec.toFixed(1) + 's';
@@ -1951,13 +2043,22 @@
       return;
     }
 
+    const session = computeSessionStats();
+    const refLineDefs = [
+      { key: 'today', value: session.todayAvg, color: '#17c3b2', label: 'Today' },
+      { key: 'week', value: session.weekAvg, color: '#8b5cf6', label: 'Week' },
+      { key: 'ao5', value: stats.ao5, color: '#ff8a3d', label: 'Ao5' },
+      { key: 'ao12', value: stats.ao12, color: '#eceae0', label: 'Ao12' }
+    ];
+    const activeRefLines = refLineDefs.filter(r => chartLineToggles[r.key] && r.value !== null);
+
     const W = 640, H = 260;
     const padL = 46, padR = 14, padT = 16, padB = 30;
     const plotW = W - padL - padR;
     const plotH = H - padT - padB;
 
-    let yMin = Math.min(...validTimes);
-    let yMax = Math.max(...validTimes);
+    let yMin = Math.min(...validTimes, ...activeRefLines.map(r => r.value));
+    let yMax = Math.max(...validTimes, ...activeRefLines.map(r => r.value));
     if (yMin === yMax) { yMin -= 1000; yMax += 1000; }
     const span = yMax - yMin;
     yMin -= span * 0.12;
@@ -1975,6 +2076,16 @@
       gridLines += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>`;
       gridLabels += `<text x="${padL - 8}" y="${y + 4}" text-anchor="end" font-size="10.5" fill="#8b8d9a" font-family="JetBrains Mono, monospace">${axisLabel(v)}</text>`;
     }
+
+    let refLinesHtml = '';
+    activeRefLines.forEach(r => {
+      const y = yFor(r.value);
+      refLinesHtml += `
+        <line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="${r.color}" stroke-width="1.5" stroke-dasharray="5 4" opacity="0.85"/>
+        <text x="${W - padR - 4}" y="${(y - 4).toFixed(1)}" text-anchor="end" font-size="10" font-weight="700" fill="${r.color}" font-family="JetBrains Mono, monospace">${r.label}</text>
+      `;
+    });
+
 
     let pathD = '', drawing = false, points = '', dnfMarkers = '';
     effTimes.forEach((v, i) => {
@@ -2006,6 +2117,7 @@
       <svg class="mc-chart-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
         ${gridLines}
         ${gridLabels}
+        ${refLinesHtml}
         <path d="${pathD.trim()}" fill="none" stroke="#2f6bff" stroke-width="2"/>
         ${points}
         ${xLabels}
