@@ -815,6 +815,7 @@
     <div class="mc-account" id="mc-account" style="display:none;">
       <span id="mc-account-email"></span>
       <button class="mc-icon-btn" id="mc-account-edit-name" title="Change display name">✎</button>
+      <button class="mc-icon-btn" id="mc-notif-toggle-btn" title="Turn on message notifications">🔕</button>
       <button class="mc-signout-btn" id="mc-signout-btn">Sign out</button>
     </div>
   </div>
@@ -987,6 +988,14 @@
               <span class="mc-stat-label">Latest</span>
               <span class="mc-stat-value" id="mc-stat-latest">--:--.---</span>
             </div>
+            <div class="mc-stat ao5">
+              <span class="mc-stat-label">Ao5</span>
+              <span class="mc-stat-value" id="mc-stat-ao5">--:--.---</span>
+            </div>
+            <div class="mc-stat ao12">
+              <span class="mc-stat-label">Ao12</span>
+              <span class="mc-stat-value" id="mc-stat-ao12">--:--.---</span>
+            </div>
             <div class="mc-stat today">
               <span class="mc-stat-label">Today's Avg</span>
               <span class="mc-stat-value" id="mc-stat-today">--:--.---</span>
@@ -1074,6 +1083,8 @@
         <select id="mc-leaderboard-metric" class="mc-leaderboard-select">
           <option value="best_ms">Best single</option>
           <option value="avg_ms">Lifetime average</option>
+          <option value="ao5_ms">Ao5</option>
+          <option value="ao12_ms">Ao12</option>
           <option value="today_avg_ms">Today's average</option>
           <option value="week_avg_ms">This week's average</option>
           <option value="arena_wins">Arena wins (Battle Cuber)</option>
@@ -1389,6 +1400,8 @@
   const statBest = document.getElementById('mc-stat-best');
   const statAvg = document.getElementById('mc-stat-avg');
   const statLatest = document.getElementById('mc-stat-latest');
+  const statAo5 = document.getElementById('mc-stat-ao5');
+  const statAo12 = document.getElementById('mc-stat-ao12');
   const addBtn = document.getElementById('mc-add-btn');
   const inMin = document.getElementById('mc-in-min');
   const inSec = document.getElementById('mc-in-sec');
@@ -1657,6 +1670,7 @@
     profileScreen.style.display = 'none';
     appScreen.style.display = 'none';
     accountBar.style.display = 'none';
+    stopMessageNotificationPoll();
   }
 
   function showApp(user) {
@@ -1686,6 +1700,7 @@
       render();
       loadCommunity();
       flushOfflineQueue();
+      startMessageNotificationPoll();
     } else {
       showProfileScreen();
     }
@@ -1706,6 +1721,7 @@
       await fetchSolves();
       render();
       loadCommunity();
+      startMessageNotificationPoll();
     } catch (err) {
       profileError.textContent = err.message || 'Could not save that name.';
     } finally {
@@ -1825,6 +1841,17 @@
     return solve.ms + (solve.overtimeMs || 0);
   }
 
+  // WCA-style rolling average: takes the most recent `count` solves, drops
+  // the single best and single worst of that window, and averages what's left.
+  function computeRollingAverage(count) {
+    if (solves.length < count) return null;
+    const window = solves.slice(-count).map(effectiveMs);
+    const sorted = [...window].sort((a, b) => a - b);
+    const trimmed = sorted.slice(1, sorted.length - 1);
+    const sum = trimmed.reduce((a, b) => a + b, 0);
+    return sum / trimmed.length;
+  }
+
   function computeStats() {
     let bestMs = Infinity, bestIdx = -1, sum = 0;
     solves.forEach((s, i) => {
@@ -1838,14 +1865,29 @@
       best: solves.length > 0 ? bestMs : null,
       avg: solves.length > 0 ? sum / solves.length : null,
       latest,
+      ao5: computeRollingAverage(5),
+      ao12: computeRollingAverage(12),
       bestIdx
     };
+  }
+
+  function renderRollingStat(el, value, count) {
+    if (value !== null) {
+      el.textContent = formatTime(value);
+      el.classList.remove('mc-stat-empty');
+    } else {
+      const needed = count - solves.length;
+      el.textContent = `${needed} more solve${needed === 1 ? '' : 's'}`;
+      el.classList.add('mc-stat-empty');
+    }
   }
 
   function renderStats(stats) {
     statBest.textContent = stats.best !== null ? formatTime(stats.best) : '--:--.---';
     statAvg.textContent = stats.avg !== null ? formatTime(stats.avg) : '--:--.---';
     statLatest.textContent = stats.latest !== null ? formatTime(stats.latest) : '--:--.---';
+    renderRollingStat(statAo5, stats.ao5, 5);
+    renderRollingStat(statAo12, stats.ao12, 12);
   }
 
   function computeSessionStats() {
@@ -2172,6 +2214,8 @@
       user_id: currentUser.id,
       best_ms: newBest,
       avg_ms: stats.avg !== null ? Math.round(stats.avg) : null,
+      ao5_ms: stats.ao5 !== null ? Math.round(stats.ao5) : null,
+      ao12_ms: stats.ao12 !== null ? Math.round(stats.ao12) : null,
       today_avg_ms: session.todayAvg !== null ? Math.round(session.todayAvg) : null,
       week_avg_ms: session.weekAvg !== null ? Math.round(session.weekAvg) : null,
       best_scramble: bestScramble,
@@ -2208,7 +2252,7 @@
 
   function personStatsLine(stat) {
     if (!stat) return 'No solves yet';
-    return `Best ${formatTime(stat.best_ms)} · Avg ${formatTime(stat.avg_ms)} · Today ${formatTime(stat.today_avg_ms)} · Week ${formatTime(stat.week_avg_ms)}`;
+    return `Best ${formatTime(stat.best_ms)} · Avg ${formatTime(stat.avg_ms)} · Ao5 ${formatTime(stat.ao5_ms)} · Ao12 ${formatTime(stat.ao12_ms)} · Today ${formatTime(stat.today_avg_ms)} · Week ${formatTime(stat.week_avg_ms)}`;
   }
 
   async function searchFriends() {
@@ -2440,6 +2484,127 @@
   }
   dmSendBtn.addEventListener('click', sendDm);
   dmInputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendDm(); });
+
+  // ---------- Message notifications ----------
+  // Notifies you of new direct messages while the app is open (including as
+  // an installed/backgrounded PWA tab), even if the conversation with that
+  // friend isn't currently open. This polls rather than using real Web Push,
+  // so it won't fire if the app/browser is fully closed — see README for
+  // notes on adding true background push later.
+
+  const NOTIF_PREF_KEY = 'mattcubing_notify_enabled';
+  const notifToggleBtn = document.getElementById('mc-notif-toggle-btn');
+  const notifSupported = typeof Notification !== 'undefined';
+
+  function notifPrefEnabled() {
+    return localStorage.getItem(NOTIF_PREF_KEY) === '1';
+  }
+
+  function updateNotifButtonUI() {
+    if (!notifSupported) {
+      notifToggleBtn.style.display = 'none';
+      return;
+    }
+    const on = Notification.permission === 'granted' && notifPrefEnabled();
+    notifToggleBtn.textContent = on ? '🔔' : '🔕';
+    notifToggleBtn.title = on ? 'Message notifications on — click to turn off' : 'Turn on message notifications';
+  }
+
+  notifToggleBtn.addEventListener('click', async () => {
+    if (!notifSupported) return;
+    if (Notification.permission === 'denied') {
+      window.alert('Notifications are blocked for this site in your browser settings. Enable them there to turn this on.');
+      return;
+    }
+    if (Notification.permission === 'default') {
+      const result = await Notification.requestPermission();
+      if (result !== 'granted') { updateNotifButtonUI(); return; }
+      localStorage.setItem(NOTIF_PREF_KEY, '1');
+    } else {
+      // already granted — this click is just toggling our own on/off preference
+      localStorage.setItem(NOTIF_PREF_KEY, notifPrefEnabled() ? '0' : '1');
+    }
+    updateNotifButtonUI();
+  });
+  updateNotifButtonUI();
+
+  let lastMessageCheckIso = null;
+  let globalDmPollHandle = null;
+  const notifNameCache = {};
+
+  async function nameForUserId(id) {
+    if (notifNameCache[id]) return notifNameCache[id];
+    const map = await fetchProfilesByIds([id]);
+    notifNameCache[id] = map[id] || 'Someone';
+    return notifNameCache[id];
+  }
+
+  async function showMessageNotification(senderId, senderName, message) {
+    const title = `${senderName} on MattCubing`;
+    const options = {
+      body: message.length > 120 ? message.slice(0, 117) + '…' : message,
+      icon: 'icon-192.png',
+      badge: 'icon-192.png',
+      tag: `mc-dm-${senderId}`,
+      data: { type: 'dm', friendId: senderId, friendName: senderName }
+    };
+    try {
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.ready;
+        if (reg && reg.showNotification) { await reg.showNotification(title, options); return; }
+      }
+      new Notification(title, options);
+    } catch (e) { console.error('Could not show notification', e); }
+  }
+
+  async function pollForNewMessages() {
+    if (!sb || !currentUser) return;
+    const sinceIso = lastMessageCheckIso || new Date().toISOString();
+    const { data, error } = await sb
+      .from('direct_messages')
+      .select('*')
+      .eq('recipient_id', currentUser.id)
+      .gt('created_at', sinceIso)
+      .order('created_at', { ascending: true })
+      .limit(50);
+    if (error) { console.error('Could not poll messages', error); return; }
+
+    if (data.length > 0) lastMessageCheckIso = data[data.length - 1].created_at;
+    else if (!lastMessageCheckIso) lastMessageCheckIso = sinceIso;
+
+    if (!notifSupported || Notification.permission !== 'granted' || !notifPrefEnabled()) return;
+
+    for (const m of data) {
+      // Skip if that conversation is already open and the tab is focused — the
+      // message is already visible on screen, no need to also notify.
+      if (currentDmFriendId === m.sender_id && document.hasFocus()) continue;
+      const name = await nameForUserId(m.sender_id);
+      showMessageNotification(m.sender_id, name, m.message);
+    }
+  }
+
+  function startMessageNotificationPoll() {
+    lastMessageCheckIso = new Date().toISOString();
+    if (globalDmPollHandle) clearInterval(globalDmPollHandle);
+    globalDmPollHandle = setInterval(pollForNewMessages, 6000);
+  }
+
+  function stopMessageNotificationPoll() {
+    if (globalDmPollHandle) { clearInterval(globalDmPollHandle); globalDmPollHandle = null; }
+    lastMessageCheckIso = null;
+  }
+
+  // When a notification is clicked, sw.js focuses/opens the app and posts a
+  // message back here so we can jump straight into that conversation.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      const msg = event.data;
+      if (msg && msg.type === 'open-dm' && msg.friendId) {
+        setActiveTab('friends');
+        openDmWith(msg.friendId, msg.friendName || 'Friend');
+      }
+    });
+  }
 
   let leaderboardData = [];
   let leaderboardProfileMap = {};
