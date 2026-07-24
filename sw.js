@@ -14,6 +14,32 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
+// Clicking a message notification focuses an existing app tab (or opens one)
+// and tells the page which conversation to jump into.
+self.addEventListener('notificationclick', (event) => {
+  const data = event.notification.data || {};
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          client.focus();
+          if (data.type === 'dm') client.postMessage(data);
+          return;
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow('./index.html').then((client) => {
+          if (client && data.type === 'dm') {
+            // give the fresh page a moment to attach its message listener
+            setTimeout(() => client.postMessage(data), 1500);
+          }
+        });
+      }
+    })
+  );
+});
+
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((names) =>
