@@ -218,6 +218,103 @@
   }
   .mc-scramble-input:focus { outline: none; }
 
+  .mc-scr3d-wrap { margin-top: 4px; }
+  .mc-scr3d-scene {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    transform-style: preserve-3d;
+    transform: rotateX(-24deg) rotateY(-34deg);
+    cursor: grab;
+    touch-action: none;
+  }
+  .mc-scr3d-scene.mc-dragging { cursor: grabbing; }
+  .mc-scr3d-cubie {
+    position: absolute;
+    width: 42px;
+    height: 42px;
+    top: 50%;
+    left: 50%;
+    margin: -21px 0 0 -21px;
+    transform-style: preserve-3d;
+  }
+  .mc-scr3d-layer-group {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    transform-style: preserve-3d;
+  }
+  .mc-scr3d-face {
+    position: absolute;
+    width: 38px;
+    height: 38px;
+    top: 2px;
+    left: 2px;
+    border-radius: 4px;
+    box-shadow: inset 0 0 0 1.5px rgba(0,0,0,0.4);
+  }
+  .mc-scr3d-arrow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .mc-scr3d-arrow svg {
+    position: absolute;
+    top: -25px;
+    left: -25px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+  }
+  .mc-scr3d-arrow.mc-scr3d-arrow-ccw svg { transform: scaleX(-1); }
+  .mc-scr3d-arrow-badge {
+    position: absolute;
+    top: -34px;
+    left: 10px;
+    background: var(--blue);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 4px;
+    display: none;
+  }
+  .mc-scr3d-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .mc-scr3d-progress {
+    font-size: 12px;
+    color: var(--muted);
+    min-width: 50px;
+    text-align: center;
+    font-family: var(--mono);
+  }
+  .mc-scr3d-movelist {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 10px;
+  }
+  .mc-scr3d-movechip {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 2px 7px;
+    border-radius: 5px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .mc-scr3d-movechip.mc-done { color: var(--text); border-color: var(--border); }
+  .mc-scr3d-movechip.mc-current { background: var(--blue); color: #fff; border-color: var(--blue); }
+
   .mc-notation-guide {
     margin-bottom: 14px;
   }
@@ -917,6 +1014,28 @@
           <span id="mc-scramble-track" style="position:absolute; inset:0; background:var(--panel-2); border:1px solid var(--border); border-radius:999px; cursor:pointer; transition:background 0.15s ease;"></span>
           <span id="mc-scramble-knob" style="position:absolute; top:3px; left:3px; width:16px; height:16px; background:var(--muted); border-radius:50%; transition:transform 0.15s ease;"></span>
         </label>
+        <label style="position:relative; display:inline-flex; align-items:center; gap:6px; margin-left:auto; font-size:12px; color:var(--muted); cursor:pointer;">
+          <span>3D view</span>
+          <span style="position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0;">
+            <input type="checkbox" id="mc-scr3d-toggle" style="opacity:0; width:0; height:0;">
+            <span id="mc-scr3d-track" style="position:absolute; inset:0; background:var(--panel-2); border:1px solid var(--border); border-radius:999px; cursor:pointer; transition:background 0.15s ease;"></span>
+            <span id="mc-scr3d-knob" style="position:absolute; top:3px; left:3px; width:16px; height:16px; background:var(--muted); border-radius:50%; transition:transform 0.15s ease;"></span>
+          </span>
+        </label>
+      </div>
+
+      <div class="mc-scr3d-wrap" id="mc-scr3d-wrap" style="display:none;">
+        <div class="mc-cube3d-wrap" style="height:200px; margin-bottom:0;">
+          <div class="mc-scr3d-scene" id="mc-scr3d-scene"></div>
+        </div>
+        <div class="mc-scr3d-controls">
+          <button class="mc-scramble-refresh" id="mc-scr3d-reset" title="Back to solved">⏮ Reset</button>
+          <button class="mc-scramble-refresh" id="mc-scr3d-prev">◀ Prev</button>
+          <div class="mc-scr3d-progress" id="mc-scr3d-progress">0 / 0</div>
+          <button class="mc-scramble-refresh" id="mc-scr3d-next">Next ▶</button>
+          <button class="mc-scramble-refresh" id="mc-scr3d-play">▶ Play</button>
+        </div>
+        <div class="mc-scr3d-movelist" id="mc-scr3d-movelist"></div>
       </div>
     </div>
 
@@ -1580,6 +1699,7 @@
   function newScramble() {
     currentScramble = generateScramble();
     scrambleTextEl.textContent = currentScramble;
+    if (typeof mc3dSyncScramble === 'function') mc3dSyncScramble();
   }
 
   function setScramble(value) {
@@ -1590,6 +1710,7 @@
       scrambleToggle.checked = true;
       updateScrambleSwitchUI();
     }
+    if (typeof mc3dSyncScramble === 'function') mc3dSyncScramble();
   }
 
   scrambleRefreshBtn.addEventListener('click', newScramble);
@@ -1611,6 +1732,347 @@
   scrambleInputEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); scrambleInputEl.blur(); }
   });
+
+  // ===================== 3D Scramble Walkthrough =====================
+  (function () {
+    const toggle = document.getElementById('mc-scr3d-toggle');
+    const track = document.getElementById('mc-scr3d-track');
+    const knob = document.getElementById('mc-scr3d-knob');
+    const wrap = document.getElementById('mc-scr3d-wrap');
+    const scene = document.getElementById('mc-scr3d-scene');
+    const progressEl = document.getElementById('mc-scr3d-progress');
+    const movelistEl = document.getElementById('mc-scr3d-movelist');
+    const prevBtn = document.getElementById('mc-scr3d-prev');
+    const nextBtn = document.getElementById('mc-scr3d-next');
+    const resetBtn = document.getElementById('mc-scr3d-reset');
+    const playBtn = document.getElementById('mc-scr3d-play');
+    if (!toggle || !scene) return;
+
+    const SIZE = 46;      // distance between cubie centers
+    const HALF = 21;      // half of a cubie's visual edge (sticker offset)
+    const ANIM_MS = 320;
+
+    const COLOR = { U: '#eceae0', D: '#ffd400', F: '#12a454', B: '#2f6bff', R: '#d5293a', L: '#ff8a3d' };
+    const FILLER = '#0a0b0f';
+    const FACE_LETTERS = ['U', 'D', 'L', 'R', 'F', 'B'];
+    const FACE_XFORM = {
+      F: `translateZ(${HALF}px)`,
+      B: `rotateY(180deg) translateZ(${HALF}px)`,
+      R: `rotateY(90deg) translateZ(${HALF}px)`,
+      L: `rotateY(-90deg) translateZ(${HALF}px)`,
+      U: `rotateX(90deg) translateZ(${HALF}px)`,
+      D: `rotateX(-90deg) translateZ(${HALF}px)`,
+    };
+    const ARROW_OFFSET = SIZE + HALF + 16;
+    const ARROW_XFORM = {
+      F: `translateZ(${ARROW_OFFSET}px)`,
+      B: `rotateY(180deg) translateZ(${ARROW_OFFSET}px)`,
+      R: `rotateY(90deg) translateZ(${ARROW_OFFSET}px)`,
+      L: `rotateY(-90deg) translateZ(${ARROW_OFFSET}px)`,
+      U: `rotateX(90deg) translateZ(${ARROW_OFFSET}px)`,
+      D: `rotateX(-90deg) translateZ(${ARROW_OFFSET}px)`,
+    };
+
+    // Move rotation matrices (validated: quarter-turn, right-hand rule, y-up math space)
+    const BASE_M = {
+      R: [[1, 0, 0], [0, 0, 1], [0, -1, 0]],
+      L: [[1, 0, 0], [0, 0, -1], [0, 1, 0]],
+      U: [[0, 0, -1], [0, 1, 0], [1, 0, 0]],
+      D: [[0, 0, 1], [0, 1, 0], [-1, 0, 0]],
+      F: [[0, 1, 0], [-1, 0, 0], [0, 0, 1]],
+      B: [[0, -1, 0], [1, 0, 0], [0, 0, 1]],
+    };
+    const AXIS_OF = { R: 0, L: 0, U: 1, D: 1, F: 2, B: 2 };
+    const LAYER_OF = { R: 1, L: -1, U: 1, D: -1, F: 1, B: -1 };
+    const IDENTITY = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+
+    function matMul(A, B) {
+      const R = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+        let s = 0;
+        for (let k = 0; k < 3; k++) s += A[i][k] * B[k][j];
+        R[i][j] = s;
+      }
+      return R;
+    }
+    function matVec(A, v) {
+      return [
+        A[0][0] * v[0] + A[0][1] * v[1] + A[0][2] * v[2],
+        A[1][0] * v[0] + A[1][1] * v[1] + A[1][2] * v[2],
+        A[2][0] * v[0] + A[2][1] * v[1] + A[2][2] * v[2],
+      ];
+    }
+    function transpose(A) {
+      const R = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) R[j][i] = A[i][j];
+      return R;
+    }
+    function moveMatrix(face, mod) {
+      let M = BASE_M[face];
+      if (mod === "'") M = transpose(M);
+      else if (mod === '2') M = matMul(M, M);
+      return M;
+    }
+    function inverseMod(mod) {
+      if (mod === '') return "'";
+      if (mod === "'") return '';
+      return '2';
+    }
+    // CSS screen space uses a flipped Y axis (down = positive); conjugate the
+    // math-space rotation matrix so it renders correctly once composed with
+    // the translate3d() Y-flip used for cubie positions.
+    const D = [1, -1, 1];
+    function toCssMatrix(M) {
+      const R = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) R[i][j] = M[i][j] * D[i] * D[j];
+      return R;
+    }
+    function matrix3dString(M) {
+      return `matrix3d(${M[0][0]},${M[1][0]},${M[2][0]},0, ${M[0][1]},${M[1][1]},${M[2][1]},0, ${M[0][2]},${M[1][2]},${M[2][2]},0, 0,0,0,1)`;
+    }
+    function cubieTransform(pos, orient) {
+      const cssM = toCssMatrix(orient);
+      return `translate3d(${pos[0] * SIZE}px, ${-pos[1] * SIZE}px, ${pos[2] * SIZE}px) ${matrix3dString(cssM)}`;
+    }
+
+    let cubies = [];       // { pos, orient, stickers, el }
+    let moves = [];        // parsed scramble tokens { face, mod, raw }
+    let moveIndex = 0;
+    let animating = false;
+    let playing = false;
+    let playTimer = null;
+    let lastScrambleKey = null;
+
+    function parseScramble(str) {
+      return (str || '').trim().split(/\s+/).filter(Boolean).map(tok => {
+        const face = tok[0];
+        const mod = tok.slice(1);
+        return { face, mod, raw: tok };
+      }).filter(m => AXIS_OF[m.face] !== undefined && (m.mod === '' || m.mod === "'" || m.mod === '2'));
+    }
+
+    function buildCubieEl(cubie) {
+      const el = document.createElement('div');
+      el.className = 'mc-scr3d-cubie';
+      FACE_LETTERS.forEach(letter => {
+        const f = document.createElement('div');
+        f.className = 'mc-scr3d-face';
+        f.style.transform = FACE_XFORM[letter];
+        f.style.background = cubie.stickers[letter] || FILLER;
+        el.appendChild(f);
+      });
+      el.style.transform = cubieTransform(cubie.pos, cubie.orient);
+      return el;
+    }
+
+    function buildCube() {
+      scene.innerHTML = '';
+      cubies = [];
+      for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++) {
+        if (x === 0 && y === 0 && z === 0) continue;
+        const stickers = {};
+        if (x === 1) stickers.R = COLOR.R;
+        if (x === -1) stickers.L = COLOR.L;
+        if (y === 1) stickers.U = COLOR.U;
+        if (y === -1) stickers.D = COLOR.D;
+        if (z === 1) stickers.F = COLOR.F;
+        if (z === -1) stickers.B = COLOR.B;
+        const cubie = { pos: [x, y, z], orient: IDENTITY.map(r => r.slice()), stickers };
+        cubie.el = buildCubieEl(cubie);
+        scene.appendChild(cubie.el);
+        cubies.push(cubie);
+      }
+      arrowEl = document.createElement('div');
+      arrowEl.className = 'mc-scr3d-arrow';
+      arrowEl.innerHTML = `
+        <svg viewBox="0 0 60 60" width="46" height="46">
+          <path d="M 44 18 A 20 20 0 1 1 28 9" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+          <polygon points="45,7 51,21 37,19" fill="#ffffff"/>
+        </svg>
+        <span class="mc-scr3d-arrow-badge">×2</span>`;
+      scene.appendChild(arrowEl);
+    }
+    let arrowEl = null;
+
+    function applyMoveInstant(move) {
+      const M = moveMatrix(move.face, move.mod);
+      const axis = AXIS_OF[move.face];
+      const layer = LAYER_OF[move.face];
+      cubies.forEach(c => {
+        if (c.pos[axis] === layer) {
+          c.pos = matVec(M, c.pos);
+          c.orient = matMul(M, c.orient);
+          c.el.style.transition = 'none';
+          c.el.style.transform = cubieTransform(c.pos, c.orient);
+        }
+      });
+    }
+
+    function applyMoveAnimated(move, onDone) {
+      const M = moveMatrix(move.face, move.mod);
+      const axis = AXIS_OF[move.face];
+      const layer = LAYER_OF[move.face];
+      const layerCubies = cubies.filter(c => c.pos[axis] === layer);
+      const group = document.createElement('div');
+      group.className = 'mc-scr3d-layer-group';
+      group.style.transform = 'matrix3d(1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1)';
+      scene.appendChild(group);
+      layerCubies.forEach(c => { c.el.style.transition = 'none'; group.appendChild(c.el); });
+
+      const groupTargetMatrix = matrix3dString(toCssMatrix(M));
+      requestAnimationFrame(() => {
+        group.style.transition = `transform ${ANIM_MS}ms cubic-bezier(.4,0,.2,1)`;
+        group.style.transform = groupTargetMatrix;
+      });
+
+      const finish = () => {
+        layerCubies.forEach(c => {
+          c.pos = matVec(M, c.pos);
+          c.orient = matMul(M, c.orient);
+          c.el.style.transition = 'none';
+          c.el.style.transform = cubieTransform(c.pos, c.orient);
+          scene.appendChild(c.el);
+        });
+        group.remove();
+        if (onDone) onDone();
+      };
+      let done = false;
+      group.addEventListener('transitionend', () => { if (!done) { done = true; finish(); } }, { once: true });
+      setTimeout(() => { if (!done) { done = true; finish(); } }, ANIM_MS + 120);
+    }
+
+    function renderMoveList() {
+      movelistEl.innerHTML = moves.map((m, i) =>
+        `<span class="mc-scr3d-movechip" data-idx="${i}">${escapeHtml(m.raw)}</span>`
+      ).join('');
+    }
+
+    function updateUI() {
+      progressEl.textContent = `${moveIndex} / ${moves.length}`;
+      const chips = movelistEl.querySelectorAll('.mc-scr3d-movechip');
+      chips.forEach((chip, i) => {
+        chip.classList.toggle('mc-done', i < moveIndex);
+        chip.classList.toggle('mc-current', i === moveIndex);
+      });
+      prevBtn.disabled = moveIndex <= 0 || animating;
+      nextBtn.disabled = moveIndex >= moves.length || animating;
+      if (moveIndex >= moves.length) {
+        arrowEl.style.display = 'none';
+      } else {
+        const mv = moves[moveIndex];
+        arrowEl.style.display = 'block';
+        arrowEl.style.transform = ARROW_XFORM[mv.face];
+        arrowEl.classList.toggle('mc-scr3d-arrow-ccw', mv.mod === "'");
+        arrowEl.querySelector('.mc-scr3d-arrow-badge').style.display = mv.mod === '2' ? 'block' : 'none';
+      }
+    }
+
+    function rebuildToIndex(target) {
+      buildCube();
+      for (let i = 0; i < target; i++) applyMoveInstant(moves[i]);
+      moveIndex = target;
+      updateUI();
+    }
+
+    function goNext() {
+      if (animating || moveIndex >= moves.length) return;
+      animating = true;
+      updateUI();
+      const mv = moves[moveIndex];
+      applyMoveAnimated(mv, () => {
+        moveIndex++;
+        animating = false;
+        updateUI();
+        if (playing) scheduleAutoStep();
+      });
+    }
+
+    function goPrev() {
+      if (animating || moveIndex <= 0) return;
+      animating = true;
+      updateUI();
+      const undoMove = moves[moveIndex - 1];
+      const inv = { face: undoMove.face, mod: inverseMod(undoMove.mod) };
+      applyMoveAnimated(inv, () => {
+        moveIndex--;
+        animating = false;
+        updateUI();
+      });
+    }
+
+    function stopPlaying() {
+      playing = false;
+      playBtn.textContent = '▶ Play';
+      if (playTimer) { clearTimeout(playTimer); playTimer = null; }
+    }
+    function scheduleAutoStep() {
+      if (!playing) return;
+      if (moveIndex >= moves.length) { stopPlaying(); return; }
+      playTimer = setTimeout(goNext, 180);
+    }
+
+    function syncScramble() {
+      const key = currentScramble || '';
+      if (key === lastScrambleKey) return;
+      lastScrambleKey = key;
+      stopPlaying();
+      moves = parseScramble(key);
+      renderMoveList();
+      rebuildToIndex(0);
+    }
+    window.mc3dSyncScramble = syncScramble;
+
+    function ensureBuilt() {
+      if (cubies.length === 0 || (currentScramble || '') !== lastScrambleKey) syncScramble();
+    }
+
+    toggle.addEventListener('change', () => {
+      const on = toggle.checked;
+      track.style.background = on ? 'var(--blue)' : 'var(--panel-2)';
+      knob.style.background = on ? '#ffffff' : 'var(--muted)';
+      knob.style.transform = on ? 'translateX(18px)' : 'translateX(0)';
+      wrap.style.display = on ? 'block' : 'none';
+      if (on) ensureBuilt();
+      else stopPlaying();
+    });
+
+    prevBtn.addEventListener('click', () => { stopPlaying(); goPrev(); });
+    nextBtn.addEventListener('click', () => { stopPlaying(); goNext(); });
+    resetBtn.addEventListener('click', () => { stopPlaying(); rebuildToIndex(0); });
+    playBtn.addEventListener('click', () => {
+      if (playing) { stopPlaying(); return; }
+      if (moveIndex >= moves.length) rebuildToIndex(0);
+      playing = true;
+      playBtn.textContent = '⏸ Pause';
+      goNext();
+    });
+    movelistEl.addEventListener('click', (e) => {
+      const chip = e.target.closest('.mc-scr3d-movechip');
+      if (!chip || animating) return;
+      stopPlaying();
+      rebuildToIndex(parseInt(chip.dataset.idx, 10));
+    });
+
+    // Drag to rotate the viewing angle (independent from the move animation)
+    let rotX = -24, rotY = -34, dragging = false, lastX = 0, lastY = 0;
+    scene.addEventListener('pointerdown', (e) => {
+      dragging = true; lastX = e.clientX; lastY = e.clientY;
+      scene.classList.add('mc-dragging');
+      scene.setPointerCapture(e.pointerId);
+    });
+    scene.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - lastX, dy = e.clientY - lastY;
+      rotY += dx * 0.5; rotX -= dy * 0.5;
+      lastX = e.clientX; lastY = e.clientY;
+      scene.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(evt => {
+      scene.addEventListener(evt, () => { dragging = false; scene.classList.remove('mc-dragging'); });
+    });
+
+    buildCube();
+  })();
 
   async function copyToClipboard(text, btn) {
     if (!text) return;
