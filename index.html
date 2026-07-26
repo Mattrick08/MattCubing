@@ -295,6 +295,27 @@
     text-align: center;
     font-family: var(--mono);
   }
+  .mc-scr3d-speed-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 10px;
+  }
+  .mc-scr3d-speed-label {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .mc-scr3d-speed-value {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--mono);
+    min-width: 30px;
+  }
+  #mc-scr3d-speed {
+    width: 120px;
+    accent-color: var(--blue);
+  }
   .mc-scr3d-movelist {
     display: flex;
     gap: 4px;
@@ -1035,6 +1056,11 @@
           <button class="mc-scramble-refresh" id="mc-scr3d-next">Next ▶</button>
           <button class="mc-scramble-refresh" id="mc-scr3d-play">▶ Play</button>
         </div>
+        <div class="mc-scr3d-speed-row">
+          <span class="mc-scr3d-speed-label">Speed</span>
+          <input type="range" id="mc-scr3d-speed" min="0.5" max="3" step="0.25" value="1">
+          <span class="mc-scr3d-speed-value" id="mc-scr3d-speed-value">1×</span>
+        </div>
         <div class="mc-scr3d-movelist" id="mc-scr3d-movelist"></div>
       </div>
     </div>
@@ -1751,11 +1777,17 @@
     const nextBtn = document.getElementById('mc-scr3d-next');
     const resetBtn = document.getElementById('mc-scr3d-reset');
     const playBtn = document.getElementById('mc-scr3d-play');
+    const speedSlider = document.getElementById('mc-scr3d-speed');
+    const speedValueEl = document.getElementById('mc-scr3d-speed-value');
     if (!toggle || !scene) return;
 
     const SIZE = 46;      // distance between cubie centers
     const HALF = 21;      // half of a cubie's visual edge (sticker offset)
-    const ANIM_MS = 320;
+    const BASE_ANIM_MS = 320;
+    const BASE_STEP_GAP_MS = 180;
+    let speed = 1;
+    function animMs() { return BASE_ANIM_MS / speed; }
+    function stepGapMs() { return BASE_STEP_GAP_MS / speed; }
 
     const COLOR = { U: '#eceae0', D: '#ffd400', F: '#12a454', B: '#2f6bff', R: '#d5293a', L: '#ff8a3d' };
     const FILLER = '#0a0b0f';
@@ -1925,8 +1957,9 @@
       layerCubies.forEach(c => { c.el.style.transition = 'none'; group.appendChild(c.el); });
 
       const groupTargetMatrix = matrix3dString(toCssMatrix(M));
+      const duration = animMs();
       requestAnimationFrame(() => {
-        group.style.transition = `transform ${ANIM_MS}ms cubic-bezier(.4,0,.2,1)`;
+        group.style.transition = `transform ${duration}ms cubic-bezier(.4,0,.2,1)`;
         group.style.transform = groupTargetMatrix;
       });
 
@@ -1943,7 +1976,7 @@
       };
       let done = false;
       group.addEventListener('transitionend', () => { if (!done) { done = true; finish(); } }, { once: true });
-      setTimeout(() => { if (!done) { done = true; finish(); } }, ANIM_MS + 120);
+      setTimeout(() => { if (!done) { done = true; finish(); } }, duration + 120);
     }
 
     function renderMoveList() {
@@ -2013,7 +2046,7 @@
     function scheduleAutoStep() {
       if (!playing) return;
       if (moveIndex >= moves.length) { stopPlaying(); return; }
-      playTimer = setTimeout(goNext, 180);
+      playTimer = setTimeout(goNext, stepGapMs());
     }
 
     function syncScramble() {
@@ -2056,6 +2089,27 @@
       if (!chip || animating) return;
       stopPlaying();
       rebuildToIndex(parseInt(chip.dataset.idx, 10));
+    });
+
+    if (speedSlider) {
+      speedSlider.addEventListener('input', () => {
+        speed = parseFloat(speedSlider.value) || 1;
+        const clean = Math.round(speed * 100) / 100;
+        speedValueEl.textContent = `${clean}×`;
+      });
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (!toggle.checked) return;                    // only when the 3D view is on
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      const active = document.activeElement;
+      const typing = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+      if (typing) return;                              // don't hijack arrow keys while typing elsewhere
+      e.preventDefault();
+      stopPlaying();
+      if (e.key === 'ArrowLeft') goPrev();
+      else goNext();
     });
 
     // Drag to rotate the viewing angle (independent from the move animation)
