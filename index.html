@@ -1374,8 +1374,13 @@
       <summary>Cube Solver<span class="mc-notation-sub">Stuck? Enter your scrambled cube and get a solution.</span></summary>
       <div class="mc-solver-body">
         <div class="mc-solver-instructions">
-          Tap each square to cycle through colors until it matches your real cube. The center square of each face is fixed (it never moves on a real cube) — you only need to set the other 8 squares per face. When all 54 squares match, hit Solve.
+          Tap each square to cycle through colors until it matches your real cube. The center square of each face is fixed (it never moves on a real cube) — you only need to set the other 8 squares per face. When all 54 squares match, hit Solve. Already have a scramble? Type it below instead and it'll fill in the cube for you.
         </div>
+        <div style="display:flex; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
+          <input type="text" id="mc-solver-scramble-input" class="mc-scramble-input" placeholder="Type a scramble, e.g. R U2 F' B L2 D..." style="flex:1; min-width:180px;">
+          <button class="mc-scramble-refresh" id="mc-solver-scramble-apply">Apply</button>
+        </div>
+        <div id="mc-solver-scramble-error" style="color:#ff6b6b; font-size:12px; margin:-2px 0 14px; display:none;"></div>
         <div class="mc-cube3d-wrap">
           <div class="mc-cube3d-scene" id="mc-cube3d-scene"></div>
         </div>
@@ -4360,6 +4365,38 @@
     buildSolverNet();
     refreshCube3DAll();
     solverResultEl.textContent = '';
+  });
+
+  const solverScrambleInput = document.getElementById('mc-solver-scramble-input');
+  const solverScrambleApplyBtn = document.getElementById('mc-solver-scramble-apply');
+  const solverScrambleErrorEl = document.getElementById('mc-solver-scramble-error');
+
+  function applySolverScramble() {
+    const raw = solverScrambleInput.value.trim();
+    solverScrambleErrorEl.style.display = 'none';
+    if (!raw) return;
+    let faceletStr;
+    try {
+      faceletStr = new Cube().move(raw).asString();
+    } catch (err) {
+      solverScrambleErrorEl.textContent = "Couldn't read that scramble — check the notation (e.g. R U2 F' B2 D L').";
+      solverScrambleErrorEl.style.display = 'block';
+      return;
+    }
+    let idx = 0;
+    SOLVER_STRING_ORDER.forEach(face => {
+      for (let i = 0; i < 9; i++) {
+        solverState[face][i] = FACE_CENTER_COLOR[faceletStr[idx]];
+        idx++;
+      }
+    });
+    buildSolverNet();
+    refreshCube3DAll();
+    solverResultEl.textContent = '';
+  }
+  solverScrambleApplyBtn.addEventListener('click', applySolverScramble);
+  solverScrambleInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); applySolverScramble(); }
   });
 
   function buildFaceletString() {
