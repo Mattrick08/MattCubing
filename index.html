@@ -237,11 +237,13 @@
     left: 50%;
     margin: -21px 0 0 -21px;
     transform-style: preserve-3d;
+    will-change: transform;
   }
   .mc-scr3d-layer-group {
     position: absolute;
     top: 0; left: 0; width: 100%; height: 100%;
     transform-style: preserve-3d;
+    will-change: transform;
   }
   .mc-scr3d-face {
     position: absolute;
@@ -1029,6 +1031,7 @@
         <button class="mc-scramble-refresh" id="mc-scramble-edit">Edit</button>
         <button class="mc-scramble-refresh" id="mc-scramble-copy">Copy</button>
         <button class="mc-scramble-refresh" id="mc-scramble-share">Share</button>
+        <button class="mc-scramble-refresh" id="mc-scramble-image">📷 Image</button>
         <button class="mc-scramble-refresh" id="mc-scramble-refresh">New scramble</button>
         <label style="position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0;">
           <input type="checkbox" id="mc-scramble-toggle" checked style="opacity:0; width:0; height:0;">
@@ -1945,6 +1948,9 @@
       });
     }
 
+    let pendingFinish = null;
+    let pendingFinishAt = 0;
+
     function applyMoveAnimated(move, onDone) {
       const M = moveMatrix(move.face, move.mod);
       const axis = AXIS_OF[move.face];
@@ -1958,12 +1964,12 @@
 
       const groupTargetMatrix = matrix3dString(toCssMatrix(M));
       const duration = animMs();
-      requestAnimationFrame(() => {
-        group.style.transition = `transform ${duration}ms cubic-bezier(.4,0,.2,1)`;
-        group.style.transform = groupTargetMatrix;
-      });
 
+      let done = false;
       const finish = () => {
+        if (done) return;
+        done = true;
+        pendingFinish = null;
         layerCubies.forEach(c => {
           c.pos = matVec(M, c.pos);
           c.orient = matMul(M, c.orient);
@@ -1974,10 +1980,40 @@
         group.remove();
         if (onDone) onDone();
       };
-      let done = false;
-      group.addEventListener('transitionend', () => { if (!done) { done = true; finish(); } }, { once: true });
-      setTimeout(() => { if (!done) { done = true; finish(); } }, duration + 120);
+
+      // Mobile browsers sometimes skip the transition entirely if the
+      // "from" state hasn't been painted yet — double-rAF guarantees a
+      // committed frame before we change the transform, so the transition
+      // reliably kicks in instead of silently jumping straight to the end.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (done) return;
+          group.style.transition = `transform ${duration}ms cubic-bezier(.4,0,.2,1)`;
+          group.style.transform = groupTargetMatrix;
+        });
+      });
+
+      group.addEventListener('transitionend', finish, { once: true });
+      // Primary safety net: a plain timer always fires eventually, unlike
+      // transitionend, which can be missed if the tab was backgrounded or
+      // the compositor dropped the transition on some mobile browsers.
+      pendingFinish = finish;
+      pendingFinishAt = Date.now() + duration + 150;
+      setTimeout(() => { if (!done) finish(); }, duration + 150);
     }
+
+    // Extra safety net for mobile: if the tab/app was backgrounded mid-turn
+    // (timers get throttled there) and comes back after the move should
+    // already be done, snap it to completion immediately instead of leaving
+    // the cube stuck mid-turn with the controls disabled.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && pendingFinish && Date.now() >= pendingFinishAt) {
+        pendingFinish();
+      }
+    });
+    window.addEventListener('focus', () => {
+      if (pendingFinish && Date.now() >= pendingFinishAt) pendingFinish();
+    });
 
     function renderMoveList() {
       movelistEl.innerHTML = moves.map((m, i) =>
@@ -2151,6 +2187,178 @@
     if (!currentScramble) return;
     const url = `${location.origin}${location.pathname}?scramble=${encodeURIComponent(currentScramble)}`;
     copyToClipboard(url, scrambleShareBtn);
+  });
+
+  // ---------- Scramble image export ----------
+  const scrambleImageBtn = document.getElementById('mc-scramble-image');
+
+  function scrRoundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function scrWrapText(ctx, text, maxWidth) {
+    const words = text.split(' ');
+    const lines = [];
+    let line = '';
+    words.forEach(w => {
+      const test = line ? `${line} ${w}` : w;
+      if (line && ctx.measureText(test).width > maxWidth) {
+        lines.push(line);
+        line = w;
+      } else {
+        line = test;
+      }
+    });
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  function drawScrambleNet(ctx, faceletStr, x, y, cellSize) {
+    const NET_COLOR_HEX = { U: '#eceae0', D: '#ffd400', F: '#12a454', B: '#2f6bff', R: '#e5293f', L: '#ff8a3d' };
+    const ORDER = ['U', 'R', 'F', 'D', 'L', 'B']; // matches cube.js asString() URFDLB order
+    const positions = { U: [1, 0], L: [0, 1], F: [1, 1], R: [2, 1], B: [3, 1], D: [1, 2] };
+    const gap = 3;
+    const pad = 6;
+    const facePixel = cellSize * 3 + gap * 2 + pad * 2;
+    const faceGap = 10;
+
+    const faceLetters = {};
+    let idx = 0;
+    ORDER.forEach(face => {
+      faceLetters[face] = faceletStr.slice(idx, idx + 9);
+      idx += 9;
+    });
+
+    Object.keys(positions).forEach(face => {
+      const [col, row] = positions[face];
+      const fx = x + col * (facePixel + faceGap);
+      const fy = y + row * (facePixel + faceGap);
+      ctx.fillStyle = '#0a0b0f';
+      scrRoundRect(ctx, fx, fy, facePixel, facePixel, 8);
+      ctx.fill();
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 3; c++) {
+          const letter = faceLetters[face][r * 3 + c];
+          ctx.fillStyle = NET_COLOR_HEX[letter] || '#333';
+          const sx = fx + pad + c * (cellSize + gap);
+          const sy = fy + pad + r * (cellSize + gap);
+          scrRoundRect(ctx, sx, sy, cellSize, cellSize, 3);
+          ctx.fill();
+        }
+      }
+    });
+
+    return { width: facePixel * 4 + faceGap * 3, height: facePixel * 3 + faceGap * 2 };
+  }
+
+  async function exportScrambleImage() {
+    if (!currentScramble || animatingScrambleImage) return;
+    let faceletStr;
+    try {
+      faceletStr = new Cube().move(currentScramble).asString();
+    } catch (err) {
+      const original = scrambleImageBtn.textContent;
+      scrambleImageBtn.textContent = "Can't export this";
+      setTimeout(() => { scrambleImageBtn.textContent = original; }, 1600);
+      return;
+    }
+
+    if (document.fonts && document.fonts.ready) {
+      try { await document.fonts.ready; } catch (err) { /* ignore, draw with fallback fonts */ }
+    }
+
+    const dpr = window.devicePixelRatio || 1;
+    const cellSize = 26;
+    const W = 720;
+    const cellGap = 3, pad = 6, faceGap = 10;
+    const facePixel = cellSize * 3 + cellGap * 2 + pad * 2;
+    const netW = facePixel * 4 + faceGap * 3;
+    const netH = facePixel * 3 + faceGap * 2;
+
+    const canvas = document.createElement('canvas');
+    const measureCtx = canvas.getContext('2d');
+    measureCtx.font = "600 22px 'JetBrains Mono', monospace";
+    const scrambleLines = scrWrapText(measureCtx, currentScramble, W - 80);
+
+    const titleTop = 56;
+    const subtitleTop = 82;
+    const scrambleTop = 122;
+    const lineHeight = 30;
+    const scrambleBottom = scrambleTop + scrambleLines.length * lineHeight;
+    const netTop = scrambleBottom + 24;
+    const H = netTop + netH + 56;
+
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    ctx.fillStyle = '#15161c';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#f0eee4';
+    ctx.font = "700 30px 'Sora', 'Segoe UI', sans-serif";
+    ctx.fillText('MattCubing', W / 2, titleTop);
+
+    ctx.fillStyle = '#8b8d9a';
+    ctx.font = "600 13px 'Inter', 'Segoe UI', sans-serif";
+    ctx.fillText('SCRAMBLE', W / 2, subtitleTop);
+
+    ctx.fillStyle = '#f0eee4';
+    ctx.font = "600 22px 'JetBrains Mono', monospace";
+    scrambleLines.forEach((line, i) => {
+      ctx.fillText(line, W / 2, scrambleTop + i * lineHeight);
+    });
+
+    const netX = (W - netW) / 2;
+    drawScrambleNet(ctx, faceletStr, netX, netTop, cellSize);
+
+    ctx.fillStyle = '#8b8d9a';
+    ctx.font = "400 12px 'Inter', 'Segoe UI', sans-serif";
+    ctx.fillText('mattcubing', W / 2, H - 22);
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      const filename = 'mattcubing-scramble.png';
+      const file = (typeof File !== 'undefined') ? new File([blob], filename, { type: 'image/png' }) : null;
+      if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: 'MattCubing scramble' });
+          return;
+        } catch (err) {
+          // user cancelled or share failed silently — fall through to download
+        }
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }, 'image/png');
+  }
+
+  let animatingScrambleImage = false;
+  scrambleImageBtn.addEventListener('click', async () => {
+    if (animatingScrambleImage) return;
+    animatingScrambleImage = true;
+    const original = scrambleImageBtn.textContent;
+    scrambleImageBtn.textContent = 'Saving…';
+    try {
+      await exportScrambleImage();
+    } finally {
+      scrambleImageBtn.textContent = original;
+      animatingScrambleImage = false;
+    }
   });
 
   // ---------- Auth ----------
