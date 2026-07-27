@@ -1301,6 +1301,7 @@
         <div class="mc-achievements-progress" id="mc-achievements-progress">0 / 0 unlocked</div>
       </div>
       <div class="mc-achievements-hint">Pin up to 3 earned badges as flair — they'll show next to your name on the leaderboard and friends list.</div>
+      <div class="mc-achievements-error" id="mc-achievements-error" style="display:none; color:var(--red); font-size:12.5px; margin-bottom:12px; background:rgba(229,41,63,0.1); border:1px solid rgba(229,41,63,0.35); border-radius:8px; padding:10px 12px;"></div>
       <div class="mc-achievements-grid" id="mc-achievements-grid"></div>
     </div>
 
@@ -3089,6 +3090,17 @@
     return solveList.reduce((sum, s) => sum + effectiveMs(s), 0);
   }
 
+  function setAchievementsError(message) {
+    const el = document.getElementById('mc-achievements-error');
+    if (!el) return;
+    if (message) {
+      el.textContent = message;
+      el.style.display = 'block';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+
   async function loadAchievementsData() {
     if (!sb || !currentUser) return;
     achievementsLoaded = false;
@@ -3110,9 +3122,15 @@
       // Only treat achievements as "loaded" if the reads that matter actually succeeded —
       // otherwise every badge would look brand-new and get (falsely) re-awarded every refresh.
       achievementsLoaded = !earnedRes.error && !flairRes.error;
+      if (!achievementsLoaded) {
+        setAchievementsError("Couldn't load achievements from the database. Make sure achievements_migration.sql has been run in your Supabase project's SQL editor, then refresh this page.");
+      } else {
+        setAchievementsError(null);
+      }
     } catch (err) {
       console.error('Could not load achievements', err);
       achievementsLoaded = false;
+      setAchievementsError("Couldn't load achievements from the database. Make sure achievements_migration.sql has been run in your Supabase project's SQL editor, then refresh this page.");
     }
   }
 
