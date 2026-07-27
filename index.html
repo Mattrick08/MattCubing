@@ -3216,6 +3216,7 @@
       totalMs: computeTotalMs(solves),
       arenaWins: cachedArenaWins,
     };
+
     const toAward = ACHIEVEMENTS.filter(a => !earnedAchievementCodes.has(a.code) && a.check(ctx));
     for (const a of toAward) {
       let saveOk = false;
@@ -3234,6 +3235,43 @@
         showAchievementToast(a);
       }
     }
+
+    // Achievements are re-checked against the *current* data every render, so if a
+    // qualifying solve was a mistyped time and gets edited or deleted, any badge that
+    // no longer holds up (e.g. a sub-10 single that was really a typo) gets revoked
+    // here too, instead of staying stuck forever.
+    const toRevoke = ACHIEVEMENTS.filter(a => earnedAchievementCodes.has(a.code) && !a.check(ctx));
+    if (toRevoke.length) {
+      let flairChanged = false;
+      for (const a of toRevoke) {
+        try {
+          const { error } = await sb.from('user_achievements').delete().eq('user_id', currentUser.id).eq('code', a.code);
+          if (error) {
+            console.error(`Could not revoke achievement "${a.code}"`, error);
+            continue;
+          }
+          earnedAchievementCodes.delete(a.code);
+          const flairIdx = userFlairCodes.indexOf(a.code);
+          if (flairIdx >= 0) {
+            userFlairCodes.splice(flairIdx, 1);
+            flairChanged = true;
+          }
+        } catch (err) {
+          console.error(`Could not revoke achievement "${a.code}"`, err);
+        }
+      }
+      if (flairChanged) {
+        try {
+          await sb.from('user_flair').upsert(
+            { user_id: currentUser.id, codes: userFlairCodes, updated_at: new Date().toISOString() },
+            { onConflict: 'user_id' }
+          );
+        } catch (err) {
+          console.error('Could not update flair after revoking an achievement', err);
+        }
+      }
+    }
+
     renderAchievementsPanel();
   }
 
