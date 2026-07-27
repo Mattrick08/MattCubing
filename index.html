@@ -509,7 +509,58 @@
   .mc-stat.ao12 { border-left-color: var(--white-sq); }
   .mc-stat.consistency { border-left-color: var(--indigo); }
   .mc-stat-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-  .mc-stat-label[title] { cursor: help; }
+
+  .mc-stat-label-wrap { position: relative; display: inline-flex; align-items: center; gap: 5px; }
+  .mc-info-btn {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1px solid var(--muted);
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-family: var(--body);
+    flex-shrink: 0;
+  }
+  .mc-info-btn:hover, .mc-info-btn.mc-active { border-color: var(--blue); color: var(--blue); }
+  .mc-info-bubble {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 210px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 11.5px;
+    line-height: 1.4;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--text);
+    box-shadow: 0 10px 28px rgba(0,0,0,0.35);
+    cursor: default;
+    z-index: 30;
+  }
+  .mc-info-bubble.mc-open { display: block; }
+  .mc-info-bubble::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: var(--panel-2);
+  }
   .mc-stat-value { font-family: var(--mono); font-weight: 700; font-size: 20px; }
   .mc-stat-value.mc-stat-empty { font-size: 13px; color: var(--muted); font-weight: 500; }
 
@@ -1317,7 +1368,13 @@
               <span class="mc-stat-value" id="mc-stat-ao12">--:--.---</span>
             </div>
             <div class="mc-stat consistency">
-              <span class="mc-stat-label" title="Standard deviation of your last 12 solves — lower means your times are more tightly clustered around your average, not just fast.">Consistency</span>
+              <span class="mc-stat-label-wrap">
+                <span class="mc-stat-label">Consistency</span>
+                <button type="button" class="mc-info-btn" id="mc-consistency-info-btn" aria-label="What does consistency mean?">?</button>
+                <div class="mc-info-bubble" id="mc-consistency-info-bubble" role="tooltip">
+                  Standard deviation of your last 12 solves. Lower means your times are more tightly clustered around your average, not just fast.
+                </div>
+              </span>
               <span class="mc-stat-value" id="mc-stat-consistency">--</span>
             </div>
             <div class="mc-stat today">
@@ -5680,6 +5737,37 @@
 
   document.getElementById('mc-notebook-guide').addEventListener('toggle', function () {
     if (this.open && notebookRepertoires.length === 0) loadNotebookRepertoires();
+  });
+
+  // ---------- Info bubbles (click-to-show explanations) ----------
+
+  function setupInfoBubble(btnId, bubbleId) {
+    const btn = document.getElementById(btnId);
+    const bubble = document.getElementById(bubbleId);
+    if (!btn || !bubble) return;
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const opening = !bubble.classList.contains('mc-open');
+      document.querySelectorAll('.mc-info-bubble.mc-open').forEach(b => b.classList.remove('mc-open'));
+      document.querySelectorAll('.mc-info-btn.mc-active').forEach(b => b.classList.remove('mc-active'));
+      if (opening) {
+        bubble.classList.add('mc-open');
+        btn.classList.add('mc-active');
+      }
+    });
+  }
+  setupInfoBubble('mc-consistency-info-btn', 'mc-consistency-info-bubble');
+
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.mc-info-bubble') || e.target.closest('.mc-info-btn')) return;
+    document.querySelectorAll('.mc-info-bubble.mc-open').forEach(b => b.classList.remove('mc-open'));
+    document.querySelectorAll('.mc-info-btn.mc-active').forEach(b => b.classList.remove('mc-active'));
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.mc-info-bubble.mc-open').forEach(b => b.classList.remove('mc-open'));
+      document.querySelectorAll('.mc-info-btn.mc-active').forEach(b => b.classList.remove('mc-active'));
+    }
   });
 
   // ---------- Theme toggle ----------
