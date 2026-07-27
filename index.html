@@ -548,6 +548,53 @@
   .mc-history-card { margin-top: 18px; }
 
   .mc-community-card { margin-top: 18px; }
+
+  .mc-achievements-card { margin-top: 18px; }
+  .mc-achievements-header {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 8px; margin-bottom: 4px;
+  }
+  .mc-achievements-header h2 {
+    font-family: var(--display); font-size: 14px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.06em; margin: 0;
+  }
+  .mc-achievements-progress { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+  .mc-achievements-hint { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .mc-achievements-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px;
+  }
+  .mc-badge-card {
+    position: relative; background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 10px 10px; text-align: center;
+  }
+  .mc-badge-card.mc-locked { opacity: 0.35; filter: grayscale(1); }
+  .mc-badge-icon { font-size: 26px; line-height: 1; margin-bottom: 6px; }
+  .mc-badge-name { font-size: 11.5px; font-weight: 700; }
+  .mc-badge-desc { font-size: 10px; color: var(--muted); margin-top: 3px; line-height: 1.35; min-height: 26px; }
+  .mc-badge-card.mc-tier-bronze { box-shadow: inset 0 0 0 1px rgba(201,138,75,0.5); }
+  .mc-badge-card.mc-tier-silver { box-shadow: inset 0 0 0 1px rgba(185,191,201,0.5); }
+  .mc-badge-card.mc-tier-gold { box-shadow: inset 0 0 0 1px rgba(255,212,0,0.5); }
+  .mc-badge-card.mc-tier-diamond { box-shadow: inset 0 0 0 1px rgba(139,92,246,0.55); }
+  .mc-badge-pin {
+    position: absolute; top: 6px; right: 6px; background: var(--bg); border: 1px solid var(--border);
+    color: var(--muted); border-radius: 6px; font-size: 9.5px; font-weight: 700; padding: 2px 5px;
+    cursor: pointer; text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .mc-badge-pin:hover { border-color: var(--blue); color: var(--blue); }
+  .mc-badge-pin.mc-pinned { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .mc-flair { font-size: 12px; margin-left: 4px; white-space: nowrap; }
+
+  .mc-achievement-toast {
+    background: var(--panel); border: 1px solid var(--yellow); border-radius: 10px;
+    padding: 10px 14px; display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45); pointer-events: auto;
+    animation: mcToastIn 0.25s ease-out;
+  }
+  .mc-achievement-toast-icon { font-size: 24px; flex-shrink: 0; }
+  .mc-achievement-toast-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .mc-achievement-toast-name { font-size: 13.5px; color: var(--yellow); font-weight: 700; }
+  .mc-achievement-toast-desc { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  @keyframes mcToastIn { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
   .mc-community-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
   .mc-community-tab {
     background: var(--panel-2); border: 1px solid var(--border); color: var(--muted);
@@ -1248,6 +1295,15 @@
       </div>
     </div>
 
+    <div class="mc-card mc-achievements-card">
+      <div class="mc-achievements-header">
+        <h2>Achievements</h2>
+        <div class="mc-achievements-progress" id="mc-achievements-progress">0 / 0 unlocked</div>
+      </div>
+      <div class="mc-achievements-hint">Pin up to 3 earned badges as flair — they'll show next to your name on the leaderboard and friends list.</div>
+      <div class="mc-achievements-grid" id="mc-achievements-grid"></div>
+    </div>
+
     <div class="mc-card mc-community-card">
       <div class="mc-community-tabs">
         <button class="mc-community-tab active" id="mc-tab-friends" data-tab="friends">Friends</button>
@@ -1491,6 +1547,8 @@
     </details>
   </div>
 </div>
+
+<div id="mc-achievement-toast-wrap" style="position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:8px; pointer-events:none; max-width:280px;"></div>
 
 <script>
 (function() {
@@ -2479,6 +2537,8 @@
       currentDisplayName = data.display_name;
       showApp(user);
       await fetchSolves();
+      await loadAchievementsData();
+      renderAchievementsPanel();
       render();
       loadCommunity();
       flushOfflineQueue();
@@ -2968,6 +3028,199 @@
     historyList.innerHTML = html;
   }
 
+  // ---------- Achievements & Flair ----------
+
+  const ACHIEVEMENTS = [
+    { code: 'first_solve', name: 'First Cube', desc: 'Log your first solve', icon: '🎲', tier: 'bronze', check: ctx => ctx.solveCount >= 1 },
+    { code: 'solves_100', name: 'Century', desc: '100 solves logged', icon: '💯', tier: 'bronze', check: ctx => ctx.solveCount >= 100 },
+    { code: 'solves_500', name: 'Grinder', desc: '500 solves logged', icon: '🔥', tier: 'silver', check: ctx => ctx.solveCount >= 500 },
+    { code: 'solves_1000', name: 'Veteran', desc: '1,000 solves logged', icon: '🏆', tier: 'gold', check: ctx => ctx.solveCount >= 1000 },
+
+    { code: 'sub_60', name: 'Under a Minute', desc: 'Sub-60 single', icon: '🥉', tier: 'bronze', check: ctx => ctx.best !== null && ctx.best < 60000 },
+    { code: 'sub_30', name: 'Half Minute Club', desc: 'Sub-30 single', icon: '🥈', tier: 'silver', check: ctx => ctx.best !== null && ctx.best < 30000 },
+    { code: 'sub_20', name: 'Sub-20', desc: 'Sub-20 single', icon: '🥇', tier: 'gold', check: ctx => ctx.best !== null && ctx.best < 20000 },
+    { code: 'sub_15', name: 'Sub-15', desc: 'Sub-15 single', icon: '💎', tier: 'diamond', check: ctx => ctx.best !== null && ctx.best < 15000 },
+    { code: 'sub_10', name: 'Sub-10 Elite', desc: 'Sub-10 single', icon: '👑', tier: 'diamond', check: ctx => ctx.best !== null && ctx.best < 10000 },
+
+    { code: 'ao5_sub_20', name: 'Consistent Speed', desc: 'Ao5 under 20s', icon: '⚡', tier: 'gold', check: ctx => ctx.ao5 !== null && ctx.ao5 < 20000 },
+    { code: 'ao12_sub_20', name: 'Rock Solid', desc: 'Ao12 under 20s', icon: '🌪️', tier: 'diamond', check: ctx => ctx.ao12 !== null && ctx.ao12 < 20000 },
+
+    { code: 'streak_3', name: 'Getting Started', desc: '3-day practice streak', icon: '📅', tier: 'bronze', check: ctx => ctx.streak >= 3 },
+    { code: 'streak_7', name: 'Weekly Habit', desc: '7-day practice streak', icon: '🔁', tier: 'silver', check: ctx => ctx.streak >= 7 },
+    { code: 'streak_30', name: 'Unstoppable', desc: '30-day practice streak', icon: '🗓️', tier: 'gold', check: ctx => ctx.streak >= 30 },
+
+    { code: 'arena_win_1', name: 'First Blood', desc: 'Win an Arena match', icon: '⚔️', tier: 'bronze', check: ctx => ctx.arenaWins >= 1 },
+    { code: 'arena_win_10', name: 'Arena Regular', desc: '10 Arena wins', icon: '🛡️', tier: 'silver', check: ctx => ctx.arenaWins >= 10 },
+    { code: 'arena_win_50', name: 'Arena Champion', desc: '50 Arena wins', icon: '🏅', tier: 'gold', check: ctx => ctx.arenaWins >= 50 },
+
+    { code: 'total_1h', name: 'Warming Up', desc: '1 hour total solving time', icon: '⏱️', tier: 'bronze', check: ctx => ctx.totalMs >= 3600000 },
+    { code: 'total_10h', name: 'Dedicated', desc: '10 hours total solving time', icon: '⏳', tier: 'silver', check: ctx => ctx.totalMs >= 36000000 },
+    { code: 'total_100h', name: 'Marathoner', desc: '100 hours total solving time', icon: '♾️', tier: 'gold', check: ctx => ctx.totalMs >= 360000000 },
+  ];
+  const ACHIEVEMENTS_BY_CODE = {};
+  ACHIEVEMENTS.forEach(a => { ACHIEVEMENTS_BY_CODE[a.code] = a; });
+  const MAX_FLAIR = 3;
+
+  let earnedAchievementCodes = new Set();
+  let userFlairCodes = [];
+  let cachedArenaWins = 0;
+  let achievementsLoaded = false;
+
+  function dayKey(d) { return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
+
+  function computeStreakDays(solveList) {
+    if (!solveList.length) return 0;
+    const daySet = new Set(solveList.map(s => dayKey(new Date(s.ts))));
+    const today = new Date();
+    let cursor = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    if (!daySet.has(dayKey(cursor))) {
+      cursor.setDate(cursor.getDate() - 1);
+      if (!daySet.has(dayKey(cursor))) return 0;
+    }
+    let streak = 0;
+    while (daySet.has(dayKey(cursor))) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+  }
+
+  function computeTotalMs(solveList) {
+    return solveList.reduce((sum, s) => sum + effectiveMs(s), 0);
+  }
+
+  async function loadAchievementsData() {
+    if (!sb || !currentUser) return;
+    try {
+      const [{ data: earnedRows }, { data: flairRow }, { data: statsRow }] = await Promise.all([
+        sb.from('user_achievements').select('code').eq('user_id', currentUser.id),
+        sb.from('user_flair').select('codes').eq('user_id', currentUser.id).maybeSingle(),
+        sb.from('user_stats').select('arena_wins').eq('user_id', currentUser.id).maybeSingle(),
+      ]);
+      earnedAchievementCodes = new Set((earnedRows || []).map(r => r.code));
+      userFlairCodes = (flairRow && flairRow.codes) || [];
+      cachedArenaWins = (statsRow && statsRow.arena_wins) || 0;
+    } catch (err) {
+      console.error('Could not load achievements', err);
+    }
+    achievementsLoaded = true;
+  }
+
+  function showAchievementToast(achievement) {
+    const wrap = document.getElementById('mc-achievement-toast-wrap');
+    if (!wrap) return;
+    const toast = document.createElement('div');
+    toast.className = 'mc-achievement-toast';
+    toast.innerHTML = `
+      <div class="mc-achievement-toast-icon">${achievement.icon}</div>
+      <div>
+        <div class="mc-achievement-toast-title">Achievement unlocked</div>
+        <div class="mc-achievement-toast-name">${escapeHtml(achievement.name)}</div>
+        <div class="mc-achievement-toast-desc">${escapeHtml(achievement.desc)}</div>
+      </div>
+    `;
+    wrap.appendChild(toast);
+    setTimeout(() => {
+      toast.style.transition = 'opacity 0.3s ease';
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 320);
+    }, 4200);
+  }
+
+  async function checkAndAwardAchievements(stats) {
+    if (!sb || !currentUser || !achievementsLoaded) return;
+    const ctx = {
+      solveCount: solves.length,
+      best: stats.best,
+      ao5: stats.ao5,
+      ao12: stats.ao12,
+      streak: computeStreakDays(solves),
+      totalMs: computeTotalMs(solves),
+      arenaWins: cachedArenaWins,
+    };
+    const toAward = ACHIEVEMENTS.filter(a => !earnedAchievementCodes.has(a.code) && a.check(ctx));
+    if (toAward.length > 0) {
+      for (const a of toAward) {
+        earnedAchievementCodes.add(a.code);
+        try {
+          await sb.from('user_achievements').insert({ user_id: currentUser.id, code: a.code });
+        } catch (err) { /* likely already earned via a race — safe to ignore */ }
+        showAchievementToast(a);
+      }
+    }
+    renderAchievementsPanel();
+  }
+
+  async function toggleFlair(code) {
+    if (!sb || !currentUser) return;
+    const idx = userFlairCodes.indexOf(code);
+    if (idx >= 0) {
+      userFlairCodes.splice(idx, 1);
+    } else {
+      if (userFlairCodes.length >= MAX_FLAIR) userFlairCodes.shift();
+      userFlairCodes.push(code);
+    }
+    renderAchievementsPanel();
+    try {
+      await sb.from('user_flair').upsert(
+        { user_id: currentUser.id, codes: userFlairCodes, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      );
+    } catch (err) {
+      console.error('Could not save flair', err);
+    }
+  }
+
+  function renderAchievementsPanel() {
+    const grid = document.getElementById('mc-achievements-grid');
+    const progressEl = document.getElementById('mc-achievements-progress');
+    if (!grid) return;
+    if (progressEl) progressEl.textContent = `${earnedAchievementCodes.size} / ${ACHIEVEMENTS.length} unlocked`;
+    grid.innerHTML = ACHIEVEMENTS.map(a => {
+      const earned = earnedAchievementCodes.has(a.code);
+      const pinned = userFlairCodes.includes(a.code);
+      const pinBtn = earned
+        ? `<button class="mc-badge-pin ${pinned ? 'mc-pinned' : ''}" data-flair-toggle="${a.code}">${pinned ? '★ Flair' : '☆ Pin'}</button>`
+        : '';
+      return `
+        <div class="mc-badge-card mc-tier-${a.tier} ${earned ? '' : 'mc-locked'}" title="${escapeHtml(a.desc)}">
+          ${pinBtn}
+          <div class="mc-badge-icon">${a.icon}</div>
+          <div class="mc-badge-name">${escapeHtml(a.name)}</div>
+          <div class="mc-badge-desc">${escapeHtml(a.desc)}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  document.getElementById('mc-achievements-grid').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-flair-toggle]');
+    if (!btn) return;
+    toggleFlair(btn.dataset.flairToggle);
+  });
+
+  async function fetchFlairByIds(ids) {
+    const map = {};
+    if (!ids.length) return map;
+    try {
+      const { data, error } = await sb.from('user_flair').select('user_id, codes').in('user_id', ids);
+      if (error) { console.error('Could not load flair', error); return map; }
+      data.forEach(row => { map[row.user_id] = row.codes || []; });
+    } catch (err) {
+      console.error('Could not load flair', err);
+    }
+    return map;
+  }
+
+  function flairHtml(codes) {
+    if (!codes || !codes.length) return '';
+    return codes.map(code => {
+      const a = ACHIEVEMENTS_BY_CODE[code];
+      if (!a) return '';
+      return `<span class="mc-flair" title="${escapeHtml(a.name)} — ${escapeHtml(a.desc)}">${a.icon}</span>`;
+    }).join('');
+  }
+
   function render() {
     const stats = computeStats();
     renderStats(stats);
@@ -2975,6 +3228,7 @@
     buildChart(stats);
     renderHistory(stats);
     syncUserStats(stats);
+    checkAndAwardAchievements(stats);
   }
 
   [filterNoteInput, filterFromInput, filterToInput].forEach(el => {
@@ -3162,6 +3416,7 @@
     const uniqueIds = [...new Set(otherIds)];
     const profileMap = await fetchProfilesByIds(uniqueIds);
     const statsMap = await fetchStatsByIds(uniqueIds);
+    const flairMap = await fetchFlairByIds(uniqueIds);
 
     if (incoming.length > 0) {
       friendRequestsSection.style.display = 'block';
@@ -3212,7 +3467,7 @@
         return `
           <div class="mc-person-row">
             <div>
-              <div class="mc-person-name">${escapeHtml(profileMap[otherId]) || 'Unknown'}</div>
+              <div class="mc-person-name">${escapeHtml(profileMap[otherId]) || 'Unknown'}${flairHtml(flairMap[otherId])}</div>
               <div class="mc-person-stats">${personStatsLine(stat)}</div>
             </div>
             <div class="mc-person-actions">
@@ -3440,6 +3695,7 @@
 
   let leaderboardData = [];
   let leaderboardProfileMap = {};
+  let leaderboardFlairMap = {};
   let expandedLeaderboardUserId = null;
 
   async function loadLeaderboard() {
@@ -3454,6 +3710,7 @@
     leaderboardData = data;
     const ids = data.map(row => row.user_id);
     leaderboardProfileMap = await fetchProfilesByIds(ids);
+    leaderboardFlairMap = await fetchFlairByIds(ids);
     renderLeaderboardList();
   }
 
@@ -3485,7 +3742,7 @@
         <div class="mc-leaderboard-row-wrap">
           <div class="mc-leaderboard-row ${row.user_id === currentUser.id ? 'mc-is-me' : ''}">
             <span class="mc-leaderboard-rank">#${i + 1}</span>
-            <span class="${nameClass}" ${nameAttr}>${escapeHtml(leaderboardProfileMap[row.user_id]) || 'Unknown'}</span>
+            <span class="${nameClass}" ${nameAttr}>${escapeHtml(leaderboardProfileMap[row.user_id]) || 'Unknown'}${flairHtml(leaderboardFlairMap[row.user_id])}</span>
             <span class="mc-leaderboard-value">${valueDisplay}</span>
           </div>
           ${scramblePanel}
@@ -4462,6 +4719,8 @@
     const { data: stats } = await sb.from('user_stats').select('arena_wins').eq('user_id', currentUser.id).maybeSingle();
     const currentWins = (stats && stats.arena_wins) || 0;
     await sb.from('user_stats').update({ arena_wins: currentWins + 1 }).eq('user_id', currentUser.id);
+    cachedArenaWins = currentWins + 1;
+    checkAndAwardAchievements(computeStats());
     playPbChime();
   }
 
