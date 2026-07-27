@@ -510,6 +510,18 @@
   .mc-stat-value { font-family: var(--mono); font-weight: 700; font-size: 20px; }
   .mc-stat-value.mc-stat-empty { font-size: 13px; color: var(--muted); font-weight: 500; }
 
+  .mc-export-toggle {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--muted);
+    margin: -4px 0 12px 0;
+    cursor: pointer;
+    user-select: none;
+  }
+  .mc-export-toggle input { accent-color: var(--blue); cursor: pointer; }
+
   .mc-filter-bar {
     display: flex;
     flex-wrap: wrap;
@@ -1332,6 +1344,10 @@
 
         <div class="mc-card mc-history-card">
           <h2>History</h2>
+          <label class="mc-export-toggle" for="mc-export-include-scramble">
+            <input type="checkbox" id="mc-export-include-scramble" checked>
+            Include scramble when sharing a solve image
+          </label>
           <div class="mc-filter-bar">
             <input type="text" id="mc-filter-note" placeholder="Search notes or scrambles…">
             <input type="date" id="mc-filter-from" title="From date">
@@ -2459,6 +2475,198 @@
     }
   });
 
+  // ---------- Solve result image export ----------
+
+  const EXPORT_SCRAMBLE_PREF_KEY = 'mc_export_include_scramble';
+  const exportIncludeScrambleCheckbox = document.getElementById('mc-export-include-scramble');
+
+  (function initExportPref() {
+    if (!exportIncludeScrambleCheckbox) return;
+    try {
+      const saved = localStorage.getItem(EXPORT_SCRAMBLE_PREF_KEY);
+      if (saved !== null) exportIncludeScrambleCheckbox.checked = saved === '1';
+    } catch (e) {}
+    exportIncludeScrambleCheckbox.addEventListener('change', () => {
+      try { localStorage.setItem(EXPORT_SCRAMBLE_PREF_KEY, exportIncludeScrambleCheckbox.checked ? '1' : '0'); } catch (e) {}
+    });
+  })();
+
+  function drawMiniLogo(ctx, cx, cy, size) {
+    const colors = ['#d5293a', '#2f6bff', '#ffd400', '#12a454', '#ff8c42', '#d5293a', '#eceae0', '#ffd400', '#2f6bff'];
+    const cell = size / 3, gap = size * 0.045, pad = size * 0.09;
+    const inner = cell - gap;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(-4 * Math.PI / 180);
+    ctx.fillStyle = '#0a0b0f';
+    scrRoundRect(ctx, -size / 2 - pad, -size / 2 - pad, size + pad * 2, size + pad * 2, size * 0.14);
+    ctx.fill();
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        ctx.fillStyle = colors[r * 3 + c];
+        const x = -size / 2 + c * cell;
+        const y = -size / 2 + r * cell;
+        scrRoundRect(ctx, x, y, inner, inner, inner * 0.18);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  async function exportSolveImage(solveId) {
+    const solve = solves.find(s => String(s.id) === String(solveId));
+    if (!solve) return;
+
+    const stats = computeStats();
+    const idx = solves.indexOf(solve);
+    const isBest = idx === stats.bestIdx;
+    const includeScramble = !!(exportIncludeScrambleCheckbox && exportIncludeScrambleCheckbox.checked && solve.scramble);
+
+    let faceletStr = null;
+    if (includeScramble) {
+      try { faceletStr = new Cube().move(solve.scramble).asString(); } catch (err) { faceletStr = null; }
+    }
+
+    if (document.fonts && document.fonts.ready) {
+      try { await document.fonts.ready; } catch (err) { /* ignore, draw with fallback fonts */ }
+    }
+
+    const dpr = window.devicePixelRatio || 1;
+    const W = 720;
+
+    const measureCanvas = document.createElement('canvas');
+    const measureCtx = measureCanvas.getContext('2d');
+
+    const headerTop = 46;
+    const timeTop = 176;
+    let cursorY = timeTop + 34;
+
+    const metaBits = [];
+    const dateStr = solve.ts ? new Date(solve.ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    if (dateStr) metaBits.push(dateStr);
+    metaBits.push(`Trial #${idx + 1}`);
+    if (isBest) metaBits.push('🏆 Personal Best');
+    cursorY += 34;
+
+    const chipDefs = [];
+    if (stats.ao5 !== null) chipDefs.push({ label: 'AO5', value: formatTime(stats.ao5) });
+    if (stats.ao12 !== null) chipDefs.push({ label: 'AO12', value: formatTime(stats.ao12) });
+    if (stats.best !== null) chipDefs.push({ label: 'BEST', value: formatTime(stats.best) });
+    const chipsTop = cursorY + 6;
+    if (chipDefs.length) cursorY = chipsTop + 54;
+
+    let scrambleLines = [];
+    let scrambleTop = 0, netTop = 0, netW = 0, netH = 0;
+    const cellSize = 24;
+    const cellGap = 3, netPad = 6, faceGap = 9;
+    const facePixel = cellSize * 3 + cellGap * 2 + netPad * 2;
+    if (includeScramble) {
+      cursorY += 20;
+      measureCtx.font = "600 18px 'JetBrains Mono', monospace";
+      scrambleLines = scrWrapText(measureCtx, solve.scramble, W - 90);
+      scrambleTop = cursorY + 30;
+      cursorY = scrambleTop + scrambleLines.length * 25;
+      if (faceletStr) {
+        netTop = cursorY + 22;
+        netW = facePixel * 4 + faceGap * 3;
+        netH = facePixel * 3 + faceGap * 2;
+        cursorY = netTop + netH;
+      }
+    }
+
+    const H = cursorY + 56;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    // Background card
+    ctx.fillStyle = '#15161c';
+    ctx.fillRect(0, 0, W, H);
+
+    // Header: logo + wordmark
+    ctx.textAlign = 'left';
+    drawMiniLogo(ctx, 54, headerTop, 30);
+    ctx.fillStyle = '#f0eee4';
+    ctx.font = "800 22px 'Sora', 'Segoe UI', sans-serif";
+    ctx.fillText('MattCubing', 82, headerTop + 8);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#8b8d9a';
+    ctx.font = "600 12px 'Inter', 'Segoe UI', sans-serif";
+    ctx.fillText(isBest ? 'PERSONAL BEST' : 'SOLVE RESULT', W - 40, headerTop + 8);
+
+    // Big time
+    ctx.textAlign = 'center';
+    ctx.fillStyle = isBest ? '#ffd400' : '#f0eee4';
+    ctx.font = "800 76px 'Sora', 'Segoe UI', sans-serif";
+    ctx.fillText(formatTime(effectiveMs(solve)), W / 2, timeTop);
+
+    // Meta line (date · trial # · pb badge)
+    ctx.fillStyle = '#8b8d9a';
+    ctx.font = "600 13px 'Inter', 'Segoe UI', sans-serif";
+    ctx.fillText(metaBits.join('   ·   '), W / 2, timeTop + 34);
+
+    // Stat chips
+    if (chipDefs.length) {
+      const chipW = 140, chipH = 50, chipGap = 14;
+      const totalW = chipDefs.length * chipW + (chipDefs.length - 1) * chipGap;
+      let chipX = (W - totalW) / 2;
+      chipDefs.forEach(chip => {
+        ctx.fillStyle = '#1c1e27';
+        scrRoundRect(ctx, chipX, chipsTop, chipW, chipH, 10);
+        ctx.fill();
+        ctx.fillStyle = '#8b8d9a';
+        ctx.font = "700 10.5px 'Inter', 'Segoe UI', sans-serif";
+        ctx.fillText(chip.label, chipX + chipW / 2, chipsTop + 20);
+        ctx.fillStyle = '#f0eee4';
+        ctx.font = "700 16px 'JetBrains Mono', monospace";
+        ctx.fillText(chip.value, chipX + chipW / 2, chipsTop + 40);
+        chipX += chipW + chipGap;
+      });
+    }
+
+    // Scramble (optional)
+    if (includeScramble) {
+      ctx.fillStyle = '#8b8d9a';
+      ctx.font = "600 12px 'Inter', 'Segoe UI', sans-serif";
+      ctx.fillText('SCRAMBLE', W / 2, scrambleTop - 22);
+
+      ctx.fillStyle = '#f0eee4';
+      ctx.font = "600 18px 'JetBrains Mono', monospace";
+      scrambleLines.forEach((line, i) => {
+        ctx.fillText(line, W / 2, scrambleTop + i * 25);
+      });
+
+      if (faceletStr) {
+        const netX = (W - netW) / 2;
+        drawScrambleNet(ctx, faceletStr, netX, netTop, cellSize);
+      }
+    }
+
+    // Footer
+    ctx.fillStyle = '#8b8d9a';
+    ctx.font = "400 12px 'Inter', 'Segoe UI', sans-serif";
+    ctx.fillText('MattCubing', W / 2, H - 22);
+
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        if (!blob) { resolve(); return; }
+        const filename = `mattcubing-solve-${formatTime(effectiveMs(solve)).replace(/[:.]/g, '-')}.png`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        resolve();
+      }, 'image/png');
+    });
+  }
+
   // ---------- Auth ----------
 
   let authMode = 'signin';
@@ -3060,7 +3268,8 @@
 
       const actionButtons = s.pending
         ? `<span class="mc-arena-tag" style="color:var(--orange); background:rgba(255,138,61,0.15); border-color:rgba(255,138,61,0.4);">⏳ Syncing…</span>`
-        : `<button class="mc-icon-btn" data-edit-time="${s.id}" title="Edit time">✎</button>
+        : `<button class="mc-icon-btn" data-export-time="${s.id}" title="Share as image">📤</button>
+           <button class="mc-icon-btn" data-edit-time="${s.id}" title="Edit time">✎</button>
            <button class="mc-icon-btn" data-edit-note="${s.id}" title="Add note">🗒</button>
            ${deleteBtn}`;
 
@@ -4131,6 +4340,23 @@
       const id = copyScrambleBtn.dataset.copyHistoryScramble;
       const solve = solves.find(s => String(s.id) === String(id));
       if (solve && solve.scramble) copyToClipboard(solve.scramble, copyScrambleBtn);
+      return;
+    }
+
+    const exportBtn = e.target.closest('[data-export-time]');
+    if (exportBtn) {
+      if (exportBtn.dataset.exporting) return;
+      exportBtn.dataset.exporting = '1';
+      const original = exportBtn.textContent;
+      exportBtn.textContent = '⏳';
+      try {
+        await exportSolveImage(exportBtn.dataset.exportTime);
+      } catch (err) {
+        console.error('Could not export solve image', err);
+      } finally {
+        exportBtn.textContent = original;
+        delete exportBtn.dataset.exporting;
+      }
       return;
     }
 
