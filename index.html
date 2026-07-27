@@ -59,6 +59,7 @@
     --white-sq-text: #eceae0;
     --cyan: #17c3b2;
     --purple: #8b5cf6;
+    --indigo: #6f7bf7;
     --mono: 'JetBrains Mono', ui-monospace, monospace;
     --display: 'Sora', 'Segoe UI', sans-serif;
     --body: 'Inter', 'Segoe UI', sans-serif;
@@ -506,7 +507,9 @@
   .mc-stat.week { border-left-color: var(--purple); }
   .mc-stat.ao5 { border-left-color: var(--orange); }
   .mc-stat.ao12 { border-left-color: var(--white-sq); }
+  .mc-stat.consistency { border-left-color: var(--indigo); }
   .mc-stat-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .mc-stat-label[title] { cursor: help; border-bottom: 1px dotted var(--muted); }
   .mc-stat-value { font-family: var(--mono); font-weight: 700; font-size: 20px; }
   .mc-stat-value.mc-stat-empty { font-size: 13px; color: var(--muted); font-weight: 500; }
 
@@ -1313,6 +1316,10 @@
               <span class="mc-stat-label">Ao12</span>
               <span class="mc-stat-value" id="mc-stat-ao12">--:--.---</span>
             </div>
+            <div class="mc-stat consistency">
+              <span class="mc-stat-label" title="Standard deviation of your last 12 solves — lower means your times are more tightly clustered around your average, not just fast.">Consistency</span>
+              <span class="mc-stat-value" id="mc-stat-consistency">--</span>
+            </div>
             <div class="mc-stat today">
               <span class="mc-stat-label">Today's Avg</span>
               <span class="mc-stat-value" id="mc-stat-today">--:--.---</span>
@@ -1740,6 +1747,7 @@
   const statLatest = document.getElementById('mc-stat-latest');
   const statAo5 = document.getElementById('mc-stat-ao5');
   const statAo12 = document.getElementById('mc-stat-ao12');
+  const statConsistency = document.getElementById('mc-stat-consistency');
   const addBtn = document.getElementById('mc-add-btn');
   const inMin = document.getElementById('mc-in-min');
   const inSec = document.getElementById('mc-in-sec');
@@ -2951,6 +2959,16 @@
     return sum / trimmed.length;
   }
 
+  // Sample standard deviation (in ms) of the last `count` solves — how tightly
+  // your recent times cluster around their own average, independent of how fast that average is.
+  function computeConsistency(count) {
+    const window = solves.slice(-count).map(effectiveMs);
+    if (window.length < 2) return null;
+    const mean = window.reduce((a, b) => a + b, 0) / window.length;
+    const variance = window.reduce((a, b) => a + (b - mean) * (b - mean), 0) / (window.length - 1);
+    return Math.sqrt(variance);
+  }
+
   function computeStats() {
     let bestMs = Infinity, bestIdx = -1, sum = 0;
     solves.forEach((s, i) => {
@@ -2966,6 +2984,7 @@
       latest,
       ao5: computeRollingAverage(5),
       ao12: computeRollingAverage(12),
+      consistency: computeConsistency(12),
       bestIdx
     };
   }
@@ -2987,6 +3006,13 @@
     statLatest.textContent = stats.latest !== null ? formatTime(stats.latest) : '--:--.---';
     renderRollingStat(statAo5, stats.ao5, 5);
     renderRollingStat(statAo12, stats.ao12, 12);
+    if (stats.consistency !== null) {
+      statConsistency.textContent = '±' + (stats.consistency / 1000).toFixed(2) + 's';
+      statConsistency.classList.remove('mc-stat-empty');
+    } else {
+      statConsistency.textContent = '2+ solves needed';
+      statConsistency.classList.add('mc-stat-empty');
+    }
   }
 
   function computeSessionStats() {
