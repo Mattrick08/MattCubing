@@ -3091,19 +3091,29 @@
 
   async function loadAchievementsData() {
     if (!sb || !currentUser) return;
+    achievementsLoaded = false;
     try {
-      const [{ data: earnedRows }, { data: flairRow }, { data: statsRow }] = await Promise.all([
+      const [earnedRes, flairRes, statsRes] = await Promise.all([
         sb.from('user_achievements').select('code').eq('user_id', currentUser.id),
         sb.from('user_flair').select('codes').eq('user_id', currentUser.id).maybeSingle(),
         sb.from('user_stats').select('arena_wins').eq('user_id', currentUser.id).maybeSingle(),
       ]);
-      earnedAchievementCodes = new Set((earnedRows || []).map(r => r.code));
-      userFlairCodes = (flairRow && flairRow.codes) || [];
-      cachedArenaWins = (statsRow && statsRow.arena_wins) || 0;
+      if (earnedRes.error) {
+        console.error('Could not load achievements — has achievements_migration.sql been run in Supabase? (user_achievements table)', earnedRes.error);
+      }
+      if (flairRes.error) {
+        console.error('Could not load flair — has achievements_migration.sql been run in Supabase? (user_flair table)', flairRes.error);
+      }
+      earnedAchievementCodes = new Set((earnedRes.data || []).map(r => r.code));
+      userFlairCodes = (flairRes.data && flairRes.data.codes) || [];
+      cachedArenaWins = (statsRes.data && statsRes.data.arena_wins) || 0;
+      // Only treat achievements as "loaded" if the reads that matter actually succeeded —
+      // otherwise every badge would look brand-new and get (falsely) re-awarded every refresh.
+      achievementsLoaded = !earnedRes.error && !flairRes.error;
     } catch (err) {
       console.error('Could not load achievements', err);
+      achievementsLoaded = false;
     }
-    achievementsLoaded = true;
   }
 
   function showAchievementToast(achievement) {
@@ -3139,12 +3149,20 @@
       arenaWins: cachedArenaWins,
     };
     const toAward = ACHIEVEMENTS.filter(a => !earnedAchievementCodes.has(a.code) && a.check(ctx));
-    if (toAward.length > 0) {
-      for (const a of toAward) {
+    for (const a of toAward) {
+      let saveOk = false;
+      try {
+        const { error } = await sb.from('user_achievements').insert({ user_id: currentUser.id, code: a.code });
+        // 23505 = unique-key conflict, meaning it was already saved earlier — treat as success.
+        saveOk = !error || error.code === '23505';
+        if (error && !saveOk) {
+          console.error(`Could not save achievement "${a.code}" — has achievements_migration.sql been run in Supabase?`, error);
+        }
+      } catch (err) {
+        console.error(`Could not save achievement "${a.code}"`, err);
+      }
+      if (saveOk) {
         earnedAchievementCodes.add(a.code);
-        try {
-          await sb.from('user_achievements').insert({ user_id: currentUser.id, code: a.code });
-        } catch (err) { /* likely already earned via a race — safe to ignore */ }
         showAchievementToast(a);
       }
     }
@@ -3153,6 +3171,7 @@
 
   async function toggleFlair(code) {
     if (!sb || !currentUser) return;
+    const prevFlair = userFlairCodes.slice();
     const idx = userFlairCodes.indexOf(code);
     if (idx >= 0) {
       userFlairCodes.splice(idx, 1);
@@ -3162,12 +3181,19 @@
     }
     renderAchievementsPanel();
     try {
-      await sb.from('user_flair').upsert(
+      const { error } = await sb.from('user_flair').upsert(
         { user_id: currentUser.id, codes: userFlairCodes, updated_at: new Date().toISOString() },
         { onConflict: 'user_id' }
       );
+      if (error) {
+        console.error('Could not save flair — has achievements_migration.sql been run in Supabase? (user_flair table)', error);
+        userFlairCodes = prevFlair;
+        renderAchievementsPanel();
+      }
     } catch (err) {
       console.error('Could not save flair', err);
+      userFlairCodes = prevFlair;
+      renderAchievementsPanel();
     }
   }
 
