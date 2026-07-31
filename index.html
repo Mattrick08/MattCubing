@@ -1171,22 +1171,58 @@ body.mc-mobile-app .mc-fs-timer-btn {
   transform-origin: top left;
   transform: rotate(90deg) translateY(-100%);
   z-index: 3000;
-  background: #b5140f;
-  flex-direction: column; align-items: center; justify-content: center;
+  flex-direction: column;
+  background: radial-gradient(circle at 50% 40%, #3a3a3c, #131315 78%);
   touch-action: none; transition: background 0.15s ease;
 }
-.mc-fs-timer-overlay.mc-fs-armed { background: #16a44f; }
-.mc-fs-timer-overlay.mc-fs-running { background: #111318; }
-.mc-fs-close {
-  position: absolute; top: max(16px, env(safe-area-inset-top, 0px)); right: 16px;
-  width: 42px; height: 42px; border-radius: 50%; border: none;
-  background: rgba(0,0,0,0.28); color: #fff; font-size: 18px; z-index: 10;
+.mc-fs-timer-overlay.mc-fs-armed { background: radial-gradient(circle at 50% 40%, #1d5c38, #0f2418 80%); }
+.mc-fs-timer-overlay.mc-fs-running { background: #101012; }
+
+.mc-fs-main { flex: 1; display: flex; align-items: center; justify-content: center; gap: 4vw; padding: 0 4vw; min-height: 0; }
+
+.mc-fs-pad {
+  width: min(30vw, 210px); height: min(30vw, 210px); border-radius: 50%;
+  background: #101012; border: 2px solid rgba(255,255,255,0.28);
+  display: flex; align-items: center; justify-content: center;
+  font-size: min(11vw, 74px); flex-shrink: 0; transition: border-color 0.15s ease, background 0.15s ease;
 }
-.mc-fs-timer-inner { width: 100%; text-align: center; padding: 0 16px; }
+.mc-fs-armed .mc-fs-pad, .mc-fs-pad.mc-fs-pad-active { border-color: #3ecf7e; background: #12241a; }
+.mc-fs-running .mc-fs-pad { opacity: 0.35; }
+
+.mc-fs-center { flex: 1; max-width: 60vw; text-align: center; padding: 0 8px; }
+.mc-fs-timer-inner { width: 100%; }
 .mc-fs-timer-overlay .mc-timer-wrap { margin-bottom: 0; }
-.mc-fs-timer-overlay .mc-timer-digits { font-size: 16vw; color: #fff; }
-.mc-fs-timer-overlay .mc-timer-hint { color: rgba(255,255,255,0.9); font-size: 15px; margin-top: 12px; }
-.mc-fs-timer-overlay .mc-timer-breakdown { color: rgba(255,255,255,0.85); }
+.mc-fs-timer-overlay .mc-timer-digits {
+  font-size: 12vw; color: #fff; font-family: 'Courier New', monospace;
+  font-variant-numeric: tabular-nums; letter-spacing: 2px;
+}
+.mc-fs-timer-overlay .mc-timer-hint { color: rgba(255,255,255,0.85); font-size: 15px; margin: 6px 0 4px; }
+.mc-fs-timer-overlay .mc-timer-breakdown { color: rgba(255,255,255,0.8); }
+.mc-fs-timer-overlay .mc-fs-timer-btn { display: none; }
+
+.mc-fs-ministats { display: flex; justify-content: center; gap: 28px; margin-top: 10px; }
+.mc-fs-mini { text-align: center; }
+.mc-fs-mini-label { display: block; font-size: 12px; color: rgba(255,255,255,0.55); text-transform: uppercase; letter-spacing: 0.5px; }
+.mc-fs-mini-value { display: block; font-size: 15px; color: rgba(255,255,255,0.92); font-variant-numeric: tabular-nums; margin-top: 2px; }
+
+.mc-fs-bottombar {
+  display: flex; flex-shrink: 0;
+  background: #050506; border-top: 1px solid rgba(255,255,255,0.1);
+  padding: 10px 4px calc(10px + env(safe-area-inset-bottom, 0px));
+}
+.mc-fs-bbtn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: none; border: none; color: rgba(255,255,255,0.85); font-size: 12px;
+  padding: 4px 2px; cursor: pointer; font-family: inherit; font-weight: 600;
+}
+.mc-fs-bicon { font-size: 17px; }
+
+.mc-fs-help-panel {
+  display: none; position: absolute; left: 50%; bottom: 78px; transform: translateX(-50%);
+  max-width: 80%; background: rgba(10,10,12,0.96); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 10px; padding: 12px 16px; color: rgba(255,255,255,0.9); font-size: 13px; line-height: 1.5;
+}
+.mc-fs-help-panel.open { display: block; }
 </style>
 </head>
 <body>
@@ -1768,8 +1804,25 @@ body.mc-mobile-app .mc-fs-timer-btn {
 </div>
 
 <div class="mc-fs-timer-overlay" id="mc-fs-timer-overlay">
-  <button type="button" class="mc-fs-close" id="mc-fs-close" aria-label="Exit fullscreen timer">✕</button>
-  <div class="mc-fs-timer-inner" id="mc-fs-timer-inner"></div>
+  <div class="mc-fs-main">
+    <div class="mc-fs-pad mc-fs-pad-left" data-pad="left">✋</div>
+    <div class="mc-fs-center">
+      <div class="mc-fs-timer-inner" id="mc-fs-timer-inner"></div>
+      <div class="mc-fs-ministats">
+        <div class="mc-fs-mini"><span class="mc-fs-mini-label">Ao5</span><span class="mc-fs-mini-value" id="mc-fs-mini-ao5">-</span></div>
+        <div class="mc-fs-mini"><span class="mc-fs-mini-label">Avg</span><span class="mc-fs-mini-value" id="mc-fs-mini-avg">-</span></div>
+        <div class="mc-fs-mini"><span class="mc-fs-mini-label">Ao12</span><span class="mc-fs-mini-value" id="mc-fs-mini-ao12">-</span></div>
+      </div>
+    </div>
+    <div class="mc-fs-pad mc-fs-pad-right" data-pad="right">✋</div>
+  </div>
+  <div class="mc-fs-help-panel" id="mc-fs-help-panel">Hold both pads until they turn green, then let go of both fingers at the same time to start. Touch anywhere to stop.</div>
+  <div class="mc-fs-bottombar">
+    <button type="button" class="mc-fs-bbtn" id="mc-fs-back-btn"><span class="mc-fs-bicon">◀</span>Back</button>
+    <button type="button" class="mc-fs-bbtn" id="mc-fs-scramble-btn"><span class="mc-fs-bicon">🎲</span>Generate Scramble</button>
+    <button type="button" class="mc-fs-bbtn" id="mc-fs-records-btn"><span class="mc-fs-bicon">📋</span>Records</button>
+    <button type="button" class="mc-fs-bbtn" id="mc-fs-help-btn"><span class="mc-fs-bicon">❓</span>Help</button>
+  </div>
 </div>
 
 <div id="mc-achievement-toast-wrap" style="position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:8px; pointer-events:none; max-width:280px;"></div>
@@ -4905,20 +4958,51 @@ body.mc-mobile-app .mc-fs-timer-btn {
   bottomNavBtns.forEach(b => b.addEventListener('click', () => showMcView(b.dataset.mcNav)));
   if (isMobileApp) showMcView('timer');
 
-  // ---- Fullscreen timer (Cubex-style: hold 2 fingers, release both to start) ----
+  // ---- Fullscreen timer (Cubex-style: hold both hand pads, release both to start) ----
   const fsOverlay = document.getElementById('mc-fs-timer-overlay');
   const fsOpenBtn = document.getElementById('mc-fs-timer-open');
-  const fsCloseBtn = document.getElementById('mc-fs-close');
+  const fsBackBtn = document.getElementById('mc-fs-back-btn');
+  const fsScrambleBtn = document.getElementById('mc-fs-scramble-btn');
+  const fsRecordsBtn = document.getElementById('mc-fs-records-btn');
+  const fsHelpBtn = document.getElementById('mc-fs-help-btn');
+  const fsHelpPanel = document.getElementById('mc-fs-help-panel');
   const fsInner = document.getElementById('mc-fs-timer-inner');
+  const fsPadLeft = document.querySelector('.mc-fs-pad-left');
+  const fsPadRight = document.querySelector('.mc-fs-pad-right');
   const timerWrapEl = document.querySelector('.mc-timer-wrap');
   const timerWrapHome = document.createComment('mc-timer-wrap-home');
   timerWrapEl.parentNode.insertBefore(timerWrapHome, timerWrapEl);
+  const mcTimerHintEl = document.getElementById('mc-timer-hint');
+  const HINT_DEFAULT = mcTimerHintEl ? mcTimerHintEl.textContent : '';
 
   let fsTimerOpen = false;
-  const fsTouchIds = new Set();
+  const fsPadTouches = new Map(); // touch identifier -> 'left' | 'right'
   let fsReady = false;
   let fsArmTimeout = null;
-  const FS_HOLD_MS = 300; // how long both fingers must stay down before it goes "ready"
+  const FS_HOLD_MS = 300; // how long both pads must stay held before it goes "ready"
+
+  function fsBothPadsHeld() {
+    return [...fsPadTouches.values()].includes('left') && [...fsPadTouches.values()].includes('right');
+  }
+  function setFsHint(text) { if (mcTimerHintEl) mcTimerHintEl.textContent = text; }
+
+  function fsSyncMiniStats() {
+    const map = { ao5: 'mc-fs-mini-ao5', avg: 'mc-fs-mini-avg', ao12: 'mc-fs-mini-ao12' };
+    const srcMap = { ao5: 'mc-stat-ao5', avg: 'mc-stat-avg', ao12: 'mc-stat-ao12' };
+    Object.keys(map).forEach(k => {
+      const src = document.getElementById(srcMap[k]);
+      const dst = document.getElementById(map[k]);
+      if (src && dst) dst.textContent = src.textContent;
+    });
+  }
+  // Keep the mini stats live while the fullscreen timer is open, mirroring
+  // the same values already computed elsewhere in the app.
+  ['mc-stat-ao5', 'mc-stat-avg', 'mc-stat-ao12'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && window.MutationObserver) {
+      new MutationObserver(fsSyncMiniStats).observe(el, { childList: true, characterData: true, subtree: true });
+    }
+  });
 
   function openFsTimer() {
     if (fsTimerOpen) return;
@@ -4926,6 +5010,9 @@ body.mc-mobile-app .mc-fs-timer-btn {
     fsInner.appendChild(timerWrapEl);
     fsOverlay.classList.add('open');
     fsOverlay.classList.toggle('mc-fs-running', timerState === 'running');
+    setFsHint(timerState === 'running' ? '' : 'Place hands on pads');
+    fsSyncMiniStats();
+    fsHelpPanel.classList.remove('open');
   }
   function closeFsTimer() {
     if (!fsTimerOpen) return;
@@ -4933,45 +5020,62 @@ body.mc-mobile-app .mc-fs-timer-btn {
     fsTimerOpen = false;
     fsOverlay.classList.remove('open', 'mc-fs-armed', 'mc-fs-running');
     timerWrapHome.parentNode.insertBefore(timerWrapEl, timerWrapHome.nextSibling);
+    setFsHint(HINT_DEFAULT);
     resetFsTouch();
   }
   function resetFsTouch() {
-    fsTouchIds.clear();
+    fsPadTouches.clear();
     fsReady = false;
     if (fsArmTimeout) { clearTimeout(fsArmTimeout); fsArmTimeout = null; }
     fsOverlay.classList.remove('mc-fs-armed');
   }
 
   if (fsOpenBtn) fsOpenBtn.addEventListener('click', openFsTimer);
-  if (fsCloseBtn) {
-    fsCloseBtn.addEventListener('click', closeFsTimer);
-    // The overlay's own touchstart/touchend below call preventDefault(), which
-    // suppresses the synthetic click on touch devices — so give the close
-    // button its own touch handling, stopped before it reaches the overlay.
-    fsCloseBtn.addEventListener('touchend', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      closeFsTimer();
-    }, { passive: false });
+
+  function fsBindBottomBtn(btn, handler) {
+    if (!btn) return;
+    // The overlay's touchstart/touchend below call preventDefault() everywhere,
+    // which suppresses the synthetic click on touch devices — so these bottom
+    // bar buttons need their own touch handling, stopped before it reaches the overlay.
+    btn.addEventListener('click', handler);
+    btn.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); handler(); }, { passive: false });
   }
+  fsBindBottomBtn(fsBackBtn, closeFsTimer);
+  fsBindBottomBtn(fsScrambleBtn, () => {
+    const btn = document.getElementById('mc-scramble-refresh');
+    if (btn) btn.click();
+  });
+  fsBindBottomBtn(fsRecordsBtn, () => {
+    closeFsTimer();
+    if (isMobileApp) showMcView('stats');
+  });
+  fsBindBottomBtn(fsHelpBtn, () => { fsHelpPanel.classList.toggle('open'); });
 
   if (fsOverlay) {
+    const isBottomBarTarget = (e) => e.target.closest('.mc-fs-bottombar');
+
     fsOverlay.addEventListener('touchstart', (e) => {
-      if (e.target.closest('#mc-fs-close')) return;
+      if (isBottomBarTarget(e)) return;
       e.preventDefault();
       if (timerState === 'running') {
         stopSolveTimer();
         fsOverlay.classList.remove('mc-fs-running', 'mc-fs-armed');
+        setFsHint('Place hands on pads');
         resetFsTouch();
         return;
       }
-      for (const t of e.changedTouches) fsTouchIds.add(t.identifier);
-      if (fsTouchIds.size >= 2 && !fsReady && !fsArmTimeout) {
+      for (const t of e.changedTouches) {
+        const pad = t.target.closest('.mc-fs-pad-left') ? 'left' : (t.target.closest('.mc-fs-pad-right') ? 'right' : null);
+        if (pad) fsPadTouches.set(t.identifier, pad);
+      }
+      if (fsBothPadsHeld() && !fsReady && !fsArmTimeout) {
+        setFsHint('Hold still…');
         fsArmTimeout = setTimeout(() => {
           fsArmTimeout = null;
-          if (fsTouchIds.size >= 2) {
+          if (fsBothPadsHeld()) {
             fsReady = true;
             fsOverlay.classList.add('mc-fs-armed');
+            setFsHint('Release to start');
             armTimer();
             if (navigator.vibrate) navigator.vibrate(15);
           }
@@ -4980,22 +5084,24 @@ body.mc-mobile-app .mc-fs-timer-btn {
     }, { passive: false });
 
     fsOverlay.addEventListener('touchend', (e) => {
-      if (e.target.closest('#mc-fs-close')) return;
+      if (isBottomBarTarget(e)) return;
       e.preventDefault();
-      for (const t of e.changedTouches) fsTouchIds.delete(t.identifier);
-      if (fsArmTimeout && fsTouchIds.size < 2) {
+      for (const t of e.changedTouches) fsPadTouches.delete(t.identifier);
+      if (fsArmTimeout && !fsBothPadsHeld()) {
         clearTimeout(fsArmTimeout);
         fsArmTimeout = null;
+        setFsHint('Place hands on pads');
       }
-      if (fsReady && fsTouchIds.size < 2) {
+      if (fsReady && !fsBothPadsHeld()) {
         fsReady = false;
         fsOverlay.classList.remove('mc-fs-armed');
         fsOverlay.classList.add('mc-fs-running');
+        setFsHint('');
         releaseTimer();
       }
     }, { passive: false });
 
-    fsOverlay.addEventListener('touchcancel', () => { resetFsTouch(); });
+    fsOverlay.addEventListener('touchcancel', () => { resetFsTouch(); setFsHint('Place hands on pads'); });
   }
 
   // ---------- Manual entry ----------
