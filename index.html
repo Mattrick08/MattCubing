@@ -1185,7 +1185,11 @@ body.mc-mobile-app .mc-fs-timer-btn {
   width: min(30vw, 210px); height: min(30vw, 210px); border-radius: 50%;
   background: rgba(0,0,0,0.18); border: 2px solid rgba(0,0,0,0.25);
   display: flex; align-items: center; justify-content: center;
-  font-size: min(11vw, 74px); flex-shrink: 0; transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+  flex-shrink: 0; transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+}
+.mc-fs-pad::after {
+  content: ''; width: 14px; height: 14px; border-radius: 50%;
+  background: rgba(0,0,0,0.35);
 }
 .mc-fs-c-running .mc-fs-pad { opacity: 0.35; }
 
@@ -1823,7 +1827,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
 
   <div class="mc-fs-timer-overlay" id="mc-fs-timer-overlay">
     <div class="mc-fs-main">
-      <div class="mc-fs-pad mc-fs-pad-left" data-pad="left">✋</div>
+      <div class="mc-fs-pad mc-fs-pad-left" data-pad="left"></div>
       <div class="mc-fs-center">
         <div class="mc-fs-timer-inner" id="mc-fs-timer-inner"></div>
         <div class="mc-fs-ministats">
@@ -1832,7 +1836,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
           <div class="mc-fs-mini"><span class="mc-fs-mini-label">Ao12</span><span class="mc-fs-mini-value" id="mc-fs-mini-ao12">-</span></div>
         </div>
       </div>
-      <div class="mc-fs-pad mc-fs-pad-right" data-pad="right">✋</div>
+      <div class="mc-fs-pad mc-fs-pad-right" data-pad="right"></div>
     </div>
     <div class="mc-fs-help-panel" id="mc-fs-help-panel">Hold both pads until they turn green, then let go of both fingers at the same time to start. Touch anywhere to stop.</div>
     <div class="mc-fs-bottombar">
