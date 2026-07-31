@@ -1161,7 +1161,6 @@ body.mc-mobile-app .mc-fs-timer-btn {
   border-radius: 8px; padding: 8px 12px; font-size: 12.5px; cursor: pointer; font-family: inherit;
 }
 
-/* Cubex-style fullscreen timer */
 /* Cubex-style fullscreen timer — rendered rotated 90° so it reads correctly
    when the phone is held sideways (landscape), regardless of OS orientation lock */
 .mc-fs-timer-overlay.open {
@@ -1172,38 +1171,46 @@ body.mc-mobile-app .mc-fs-timer-btn {
   transform: rotate(90deg) translateY(-100%);
   z-index: 3000;
   flex-direction: column;
-  background: radial-gradient(circle at 50% 40%, #3a3a3c, #131315 78%);
+  background: var(--yellow);
   touch-action: none; transition: background 0.15s ease;
 }
-.mc-fs-timer-overlay.mc-fs-armed { background: radial-gradient(circle at 50% 40%, #1d5c38, #0f2418 80%); }
-.mc-fs-timer-overlay.mc-fs-running { background: #101012; }
+/* Same four colors as the normal timer sticker — mirrored live from its own classes */
+.mc-fs-timer-overlay.mc-fs-c-armed { background: var(--red); }
+.mc-fs-timer-overlay.mc-fs-c-inspecting { background: var(--orange); }
+.mc-fs-timer-overlay.mc-fs-c-running { background: var(--green); }
 
 .mc-fs-main { flex: 1; display: flex; align-items: center; justify-content: center; gap: 4vw; padding: 0 4vw; min-height: 0; }
 
 .mc-fs-pad {
   width: min(30vw, 210px); height: min(30vw, 210px); border-radius: 50%;
-  background: #101012; border: 2px solid rgba(255,255,255,0.28);
+  background: rgba(0,0,0,0.18); border: 2px solid rgba(0,0,0,0.25);
   display: flex; align-items: center; justify-content: center;
-  font-size: min(11vw, 74px); flex-shrink: 0; transition: border-color 0.15s ease, background 0.15s ease;
+  font-size: min(11vw, 74px); flex-shrink: 0; transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
 }
-.mc-fs-armed .mc-fs-pad, .mc-fs-pad.mc-fs-pad-active { border-color: #3ecf7e; background: #12241a; }
-.mc-fs-running .mc-fs-pad { opacity: 0.35; }
+.mc-fs-c-running .mc-fs-pad { opacity: 0.35; }
 
-.mc-fs-center { flex: 1; max-width: 60vw; text-align: center; padding: 0 8px; }
-.mc-fs-timer-inner { width: 100%; }
-.mc-fs-timer-overlay .mc-timer-wrap { margin-bottom: 0; }
+.mc-fs-center {
+  flex: 1; max-width: 60vw; padding: 0 8px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: min(30vw, 210px);
+}
+.mc-fs-timer-inner { width: 100%; text-align: center; }
+.mc-fs-timer-overlay .mc-timer-wrap { margin: 0; width: 100%; }
+.mc-fs-timer-overlay .mc-timer {
+  background: transparent; border: none; padding: 0;
+  /* text color still comes from .mc-timer / .armed / .inspecting / .running below — unchanged */
+}
 .mc-fs-timer-overlay .mc-timer-digits {
-  font-size: 12vw; color: #fff; font-family: 'Courier New', monospace;
+  font-size: 12vw; font-family: 'Courier New', monospace;
   font-variant-numeric: tabular-nums; letter-spacing: 2px;
 }
-.mc-fs-timer-overlay .mc-timer-hint { color: rgba(255,255,255,0.85); font-size: 15px; margin: 6px 0 4px; }
-.mc-fs-timer-overlay .mc-timer-breakdown { color: rgba(255,255,255,0.8); }
-.mc-fs-timer-overlay .mc-fs-timer-btn { display: none; }
+.mc-fs-timer-overlay .mc-timer-hint { font-size: 15px; margin: 6px 0 4px; }
+.mc-fs-timer-overlay .mc-fs-timer-btn { display: inline-flex; margin: 0 0 10px; }
 
-.mc-fs-ministats { display: flex; justify-content: center; gap: 28px; margin-top: 10px; }
-.mc-fs-mini { text-align: center; }
-.mc-fs-mini-label { display: block; font-size: 12px; color: rgba(255,255,255,0.55); text-transform: uppercase; letter-spacing: 0.5px; }
-.mc-fs-mini-value { display: block; font-size: 15px; color: rgba(255,255,255,0.92); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.mc-fs-ministats { display: flex; justify-content: center; gap: 10px; margin-top: 10px; }
+.mc-fs-mini { text-align: center; background: rgba(0,0,0,0.22); border-radius: 10px; padding: 6px 14px; }
+.mc-fs-mini-label { display: block; font-size: 11px; color: rgba(255,255,255,0.75); text-transform: uppercase; letter-spacing: 0.5px; }
+.mc-fs-mini-value { display: block; font-size: 14px; color: #fff; font-variant-numeric: tabular-nums; margin-top: 2px; }
 
 .mc-fs-bottombar {
   display: flex; flex-shrink: 0;
@@ -1216,6 +1223,18 @@ body.mc-mobile-app .mc-fs-timer-btn {
   padding: 4px 2px; cursor: pointer; font-family: inherit; font-weight: 600;
 }
 .mc-fs-bicon { font-size: 17px; }
+.mc-fs-bbtn-toggle-row { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+.mc-fs-inspection-switch {
+  position: relative; display: inline-block; width: 34px; height: 20px; cursor: pointer;
+}
+.mc-fs-inspection-switch .mc-fs-insp-track {
+  position: absolute; inset: 0; background: rgba(255,255,255,0.2); border-radius: 999px; transition: background 0.15s ease;
+}
+.mc-fs-inspection-switch.on .mc-fs-insp-track { background: var(--blue); }
+.mc-fs-inspection-switch .mc-fs-insp-knob {
+  position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: transform 0.15s ease;
+}
+.mc-fs-inspection-switch.on .mc-fs-insp-knob { transform: translateX(14px); }
 
 .mc-fs-help-panel {
   display: none; position: absolute; left: 50%; bottom: 78px; transform: translateX(-50%);
@@ -1819,7 +1838,10 @@ body.mc-mobile-app .mc-fs-timer-btn {
   <div class="mc-fs-help-panel" id="mc-fs-help-panel">Hold both pads until they turn green, then let go of both fingers at the same time to start. Touch anywhere to stop.</div>
   <div class="mc-fs-bottombar">
     <button type="button" class="mc-fs-bbtn" id="mc-fs-back-btn"><span class="mc-fs-bicon">◀</span>Back</button>
-    <button type="button" class="mc-fs-bbtn" id="mc-fs-scramble-btn"><span class="mc-fs-bicon">🎲</span>Generate Scramble</button>
+    <div class="mc-fs-bbtn-toggle-row">
+      <span class="mc-fs-inspection-switch" id="mc-fs-inspection-switch"><span class="mc-fs-insp-track"></span><span class="mc-fs-insp-knob"></span></span>
+      <span style="font-size:11px; font-weight:600;">15s Inspection</span>
+    </div>
     <button type="button" class="mc-fs-bbtn" id="mc-fs-records-btn"><span class="mc-fs-bicon">📋</span>Records</button>
     <button type="button" class="mc-fs-bbtn" id="mc-fs-help-btn"><span class="mc-fs-bicon">❓</span>Help</button>
   </div>
@@ -4962,18 +4984,17 @@ body.mc-mobile-app .mc-fs-timer-btn {
   const fsOverlay = document.getElementById('mc-fs-timer-overlay');
   const fsOpenBtn = document.getElementById('mc-fs-timer-open');
   const fsBackBtn = document.getElementById('mc-fs-back-btn');
-  const fsScrambleBtn = document.getElementById('mc-fs-scramble-btn');
   const fsRecordsBtn = document.getElementById('mc-fs-records-btn');
   const fsHelpBtn = document.getElementById('mc-fs-help-btn');
   const fsHelpPanel = document.getElementById('mc-fs-help-panel');
   const fsInner = document.getElementById('mc-fs-timer-inner');
-  const fsPadLeft = document.querySelector('.mc-fs-pad-left');
-  const fsPadRight = document.querySelector('.mc-fs-pad-right');
+  const fsInspectionSwitch = document.getElementById('mc-fs-inspection-switch');
   const timerWrapEl = document.querySelector('.mc-timer-wrap');
   const timerWrapHome = document.createComment('mc-timer-wrap-home');
   timerWrapEl.parentNode.insertBefore(timerWrapHome, timerWrapEl);
   const mcTimerHintEl = document.getElementById('mc-timer-hint');
-  const HINT_DEFAULT = mcTimerHintEl ? mcTimerHintEl.textContent : '';
+  const fsOpenBtnLabel = fsOpenBtn ? fsOpenBtn.innerHTML : '';
+  const FS_BACK_LABEL = '<span class="mc-bn-icon">◀</span> Back';
 
   let fsTimerOpen = false;
   const fsPadTouches = new Map(); // touch identifier -> 'left' | 'right'
@@ -5004,33 +5025,71 @@ body.mc-mobile-app .mc-fs-timer-btn {
     }
   });
 
+  // Mirror the exact same yellow/red/orange/green states the normal timer
+  // sticker already uses (idle/armed/inspecting/running) onto the fullscreen
+  // background, by watching the real #mc-timer element's classes.
+  function fsSyncColorFromTimer() {
+    fsOverlay.classList.remove('mc-fs-c-armed', 'mc-fs-c-inspecting', 'mc-fs-c-running');
+    if (timerEl.classList.contains('armed')) fsOverlay.classList.add('mc-fs-c-armed');
+    else if (timerEl.classList.contains('inspecting')) fsOverlay.classList.add('mc-fs-c-inspecting');
+    else if (timerEl.classList.contains('running')) fsOverlay.classList.add('mc-fs-c-running');
+  }
+  if (window.MutationObserver) {
+    new MutationObserver(fsSyncColorFromTimer).observe(timerEl, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  // Mirror + drive the real inspection checkbox so behavior matches exactly.
+  const realInspectionToggle = document.getElementById('mc-inspection-toggle');
+  function fsSyncInspectionSwitch() {
+    if (fsInspectionSwitch && realInspectionToggle) {
+      fsInspectionSwitch.classList.toggle('on', realInspectionToggle.checked);
+    }
+  }
+  if (realInspectionToggle) {
+    realInspectionToggle.addEventListener('change', fsSyncInspectionSwitch);
+  }
+  if (fsInspectionSwitch) {
+    const toggleInspection = () => { if (realInspectionToggle) realInspectionToggle.click(); };
+    fsInspectionSwitch.addEventListener('click', toggleInspection);
+    fsInspectionSwitch.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); toggleInspection(); }, { passive: false });
+  }
+
   function openFsTimer() {
     if (fsTimerOpen) return;
     fsTimerOpen = true;
     fsInner.appendChild(timerWrapEl);
     fsOverlay.classList.add('open');
-    fsOverlay.classList.toggle('mc-fs-running', timerState === 'running');
+    fsSyncColorFromTimer();
+    fsSyncInspectionSwitch();
     setFsHint(timerState === 'running' ? '' : 'Place hands on pads');
     fsSyncMiniStats();
     fsHelpPanel.classList.remove('open');
+    if (fsOpenBtn) fsOpenBtn.innerHTML = FS_BACK_LABEL;
   }
   function closeFsTimer() {
     if (!fsTimerOpen) return;
     if (timerState === 'running') return; // don't let a solve get orphaned mid-run
     fsTimerOpen = false;
-    fsOverlay.classList.remove('open', 'mc-fs-armed', 'mc-fs-running');
+    fsOverlay.classList.remove('open', 'mc-fs-c-armed', 'mc-fs-c-inspecting', 'mc-fs-c-running');
     timerWrapHome.parentNode.insertBefore(timerWrapEl, timerWrapHome.nextSibling);
-    setFsHint(HINT_DEFAULT);
+    setFsHint(useInspection ? 'Hold, then release to start inspection' : 'Hold, then release to start');
     resetFsTouch();
+    if (fsOpenBtn) fsOpenBtn.innerHTML = fsOpenBtnLabel;
   }
   function resetFsTouch() {
     fsPadTouches.clear();
     fsReady = false;
     if (fsArmTimeout) { clearTimeout(fsArmTimeout); fsArmTimeout = null; }
-    fsOverlay.classList.remove('mc-fs-armed');
   }
 
-  if (fsOpenBtn) fsOpenBtn.addEventListener('click', openFsTimer);
+  // The fullscreen button doubles as its own back button once inside fullscreen.
+  if (fsOpenBtn) {
+    fsOpenBtn.addEventListener('click', () => { fsTimerOpen ? closeFsTimer() : openFsTimer(); });
+    fsOpenBtn.addEventListener('touchend', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      fsTimerOpen ? closeFsTimer() : openFsTimer();
+    }, { passive: false });
+  }
 
   function fsBindBottomBtn(btn, handler) {
     if (!btn) return;
@@ -5041,10 +5100,6 @@ body.mc-mobile-app .mc-fs-timer-btn {
     btn.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); handler(); }, { passive: false });
   }
   fsBindBottomBtn(fsBackBtn, closeFsTimer);
-  fsBindBottomBtn(fsScrambleBtn, () => {
-    const btn = document.getElementById('mc-scramble-refresh');
-    if (btn) btn.click();
-  });
   fsBindBottomBtn(fsRecordsBtn, () => {
     closeFsTimer();
     if (isMobileApp) showMcView('stats');
@@ -5052,14 +5107,13 @@ body.mc-mobile-app .mc-fs-timer-btn {
   fsBindBottomBtn(fsHelpBtn, () => { fsHelpPanel.classList.toggle('open'); });
 
   if (fsOverlay) {
-    const isBottomBarTarget = (e) => e.target.closest('.mc-fs-bottombar');
+    const isBottomBarTarget = (e) => e.target.closest('.mc-fs-bottombar') || e.target.closest('#mc-fs-timer-open');
 
     fsOverlay.addEventListener('touchstart', (e) => {
       if (isBottomBarTarget(e)) return;
       e.preventDefault();
       if (timerState === 'running') {
         stopSolveTimer();
-        fsOverlay.classList.remove('mc-fs-running', 'mc-fs-armed');
         setFsHint('Place hands on pads');
         resetFsTouch();
         return;
@@ -5074,7 +5128,6 @@ body.mc-mobile-app .mc-fs-timer-btn {
           fsArmTimeout = null;
           if (fsBothPadsHeld()) {
             fsReady = true;
-            fsOverlay.classList.add('mc-fs-armed');
             setFsHint('Release to start');
             armTimer();
             if (navigator.vibrate) navigator.vibrate(15);
@@ -5094,8 +5147,6 @@ body.mc-mobile-app .mc-fs-timer-btn {
       }
       if (fsReady && !fsBothPadsHeld()) {
         fsReady = false;
-        fsOverlay.classList.remove('mc-fs-armed');
-        fsOverlay.classList.add('mc-fs-running');
         setFsHint('');
         releaseTimer();
       }
