@@ -1130,6 +1130,56 @@
   .mc-chart-line-pill[data-line="week"] .mc-chart-line-swatch { background: var(--purple); }
   .mc-chart-line-pill[data-line="ao5"] .mc-chart-line-swatch { background: var(--orange); }
   .mc-chart-line-pill[data-line="ao12"] .mc-chart-line-swatch { background: var(--white-sq); }
+
+/* ===== Mobile app mode (phones only — desktop layout above is untouched) ===== */
+.mc-bottomnav { display: none; }
+.mc-fs-timer-btn { display: none; }
+.mc-fs-timer-overlay { display: none; }
+
+body.mc-mobile-app .mc-view { display: none; }
+body.mc-mobile-app .mc-view.mc-view-active { display: block; }
+body.mc-mobile-app #mc-app { padding-bottom: 76px; }
+
+body.mc-mobile-app .mc-bottomnav {
+  display: flex;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 600;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+}
+.mc-bottomnav-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: none; border: none; color: var(--muted); font-size: 10.5px;
+  padding: 6px 2px; cursor: pointer; font-family: inherit;
+}
+.mc-bottomnav-btn .mc-bn-icon { font-size: 19px; line-height: 1; }
+.mc-bottomnav-btn.active { color: var(--blue); }
+
+body.mc-mobile-app .mc-fs-timer-btn {
+  display: inline-flex; align-items: center; gap: 6px; margin-left: 8px;
+  background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+  border-radius: 8px; padding: 8px 12px; font-size: 12.5px; cursor: pointer; font-family: inherit;
+}
+
+/* Cubex-style fullscreen timer */
+.mc-fs-timer-overlay.open {
+  display: flex; position: fixed; inset: 0; z-index: 3000;
+  background: #b5140f;
+  flex-direction: column; align-items: center; justify-content: center;
+  touch-action: none; transition: background 0.15s ease;
+}
+.mc-fs-timer-overlay.mc-fs-armed { background: #16a44f; }
+.mc-fs-timer-overlay.mc-fs-running { background: #111318; }
+.mc-fs-close {
+  position: absolute; top: max(16px, env(safe-area-inset-top, 0px)); right: 16px;
+  width: 42px; height: 42px; border-radius: 50%; border: none;
+  background: rgba(0,0,0,0.28); color: #fff; font-size: 18px; z-index: 10;
+}
+.mc-fs-timer-inner { width: 100%; text-align: center; padding: 0 16px; }
+.mc-fs-timer-overlay .mc-timer-wrap { margin-bottom: 0; }
+.mc-fs-timer-overlay .mc-timer-digits { font-size: 16vw; color: #fff; }
+.mc-fs-timer-overlay .mc-timer-hint { color: rgba(255,255,255,0.9); font-size: 15px; margin-top: 12px; }
+.mc-fs-timer-overlay .mc-timer-breakdown { color: rgba(255,255,255,0.85); }
 </style>
 </head>
 <body>
@@ -1197,6 +1247,14 @@
   <!-- Main app -->
   <div id="mc-app" style="display:none;">
 
+    <div class="mc-bottomnav">
+      <button type="button" class="mc-bottomnav-btn" data-mc-nav="timer"><span class="mc-bn-icon">⏱️</span>Timer</button>
+      <button type="button" class="mc-bottomnav-btn" data-mc-nav="stats"><span class="mc-bn-icon">📊</span>Stats</button>
+      <button type="button" class="mc-bottomnav-btn" data-mc-nav="community"><span class="mc-bn-icon">👥</span>Community</button>
+      <button type="button" class="mc-bottomnav-btn" data-mc-nav="tools"><span class="mc-bn-icon">🧩</span>Tools</button>
+    </div>
+
+    <div class="mc-view" data-mc-view="timer">
     <div class="mc-card mc-scramble-card">
       <div id="mc-scramble-content">
         <div class="mc-scramble-label">Scramble</div>
@@ -1327,6 +1385,7 @@
     </div>
 
     <div class="mc-timer-wrap">
+      <button type="button" class="mc-fs-timer-btn" id="mc-fs-timer-open"><span class="mc-bn-icon">⛶</span> Fullscreen timer</button>
       <div class="mc-timer" id="mc-timer">
         <div class="mc-timer-digits" id="mc-timer-digits">0:00.000</div>
         <div class="mc-timer-breakdown" id="mc-timer-breakdown">
@@ -1336,7 +1395,9 @@
         <div class="mc-timer-hint" id="mc-timer-hint">Hold, then release to start</div>
       </div>
     </div>
+    </div><!-- /view timer -->
 
+    <div class="mc-view" data-mc-view="stats">
     <div class="mc-layout">
       <div class="mc-card mc-chart-card">
         <div class="mc-chart-header">
@@ -1437,7 +1498,9 @@
         </div>
       </div>
     </div>
+    </div><!-- /view stats -->
 
+    <div class="mc-view" data-mc-view="community">
     <div class="mc-card mc-achievements-card">
       <div class="mc-achievements-header">
         <h2>Achievements</h2>
@@ -1600,6 +1663,9 @@
       </div>
     </div>
 
+    </div><!-- /view community -->
+
+    <div class="mc-view" data-mc-view="tools">
     <details class="mc-card mc-solver-guide" id="mc-solver-guide">
       <summary>Cube Solver<span class="mc-notation-sub">Stuck? Enter your scrambled cube and get a solution.</span></summary>
       <div class="mc-solver-body">
@@ -1690,7 +1756,13 @@
         </div>
       </div>
     </details>
+    </div><!-- /view tools -->
   </div>
+</div>
+
+<div class="mc-fs-timer-overlay" id="mc-fs-timer-overlay">
+  <button type="button" class="mc-fs-close" id="mc-fs-close" aria-label="Exit fullscreen timer">✕</button>
+  <div class="mc-fs-timer-inner" id="mc-fs-timer-inner"></div>
 </div>
 
 <div id="mc-achievement-toast-wrap" style="position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:8px; pointer-events:none; max-width:280px;"></div>
@@ -4738,10 +4810,10 @@
   }
 
   timerEl.addEventListener('mousedown', (e) => { e.preventDefault(); handleTimerPressStart(); });
-  timerEl.addEventListener('touchstart', (e) => { e.preventDefault(); handleTimerPressStart(); }, { passive: false });
+  timerEl.addEventListener('touchstart', (e) => { if (fsTimerOpen) return; e.preventDefault(); handleTimerPressStart(); }, { passive: false });
   window.addEventListener('mouseup', releaseTimer);
-  timerEl.addEventListener('touchend', (e) => { e.preventDefault(); releaseTimer(); }, { passive: false });
-  timerEl.addEventListener('touchcancel', () => { timerArmed = false; timerEl.classList.remove('armed'); });
+  timerEl.addEventListener('touchend', (e) => { if (fsTimerOpen) return; e.preventDefault(); releaseTimer(); }, { passive: false });
+  timerEl.addEventListener('touchcancel', () => { if (fsTimerOpen) return; timerArmed = false; timerEl.classList.remove('armed'); });
 
   document.addEventListener('keydown', (e) => {
     if (e.code !== 'Space') return;
@@ -4804,6 +4876,108 @@
     letterKeysHeld.clear();
     letterComboActive = false;
   });
+
+  // ---------- Mobile app mode: full-screen tabs + Cubex-style fullscreen timer ----------
+  // Desktop (mouse pointer) is completely unaffected — everything below is gated
+  // by `isMobileApp`, computed once from the pointer type + screen width.
+
+  const isMobileApp = window.matchMedia('(pointer: coarse)').matches && window.innerWidth <= 900;
+  if (isMobileApp) document.body.classList.add('mc-mobile-app');
+
+  const mcViews = document.querySelectorAll('.mc-view');
+  const bottomNavBtns = document.querySelectorAll('.mc-bottomnav-btn');
+
+  function showMcView(name) {
+    mcViews.forEach(v => v.classList.toggle('mc-view-active', v.dataset.mcView === name));
+    bottomNavBtns.forEach(b => b.classList.toggle('active', b.dataset.mcNav === name));
+    window.scrollTo(0, 0);
+    // Charts/canvases in a previously display:none tab can render at 0 width —
+    // nudging a resize event after the tab becomes visible fixes that.
+    setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+  }
+  bottomNavBtns.forEach(b => b.addEventListener('click', () => showMcView(b.dataset.mcNav)));
+  if (isMobileApp) showMcView('timer');
+
+  // ---- Fullscreen timer (Cubex-style: hold 2 fingers, release both to start) ----
+  const fsOverlay = document.getElementById('mc-fs-timer-overlay');
+  const fsOpenBtn = document.getElementById('mc-fs-timer-open');
+  const fsCloseBtn = document.getElementById('mc-fs-close');
+  const fsInner = document.getElementById('mc-fs-timer-inner');
+  const timerWrapEl = document.querySelector('.mc-timer-wrap');
+  const timerWrapHome = document.createComment('mc-timer-wrap-home');
+  timerWrapEl.parentNode.insertBefore(timerWrapHome, timerWrapEl);
+
+  let fsTimerOpen = false;
+  const fsTouchIds = new Set();
+  let fsReady = false;
+  let fsArmTimeout = null;
+  const FS_HOLD_MS = 300; // how long both fingers must stay down before it goes "ready"
+
+  function openFsTimer() {
+    if (fsTimerOpen) return;
+    fsTimerOpen = true;
+    fsInner.appendChild(timerWrapEl);
+    fsOverlay.classList.add('open');
+    fsOverlay.classList.toggle('mc-fs-running', timerState === 'running');
+  }
+  function closeFsTimer() {
+    if (!fsTimerOpen) return;
+    if (timerState === 'running') return; // don't let a solve get orphaned mid-run
+    fsTimerOpen = false;
+    fsOverlay.classList.remove('open', 'mc-fs-armed', 'mc-fs-running');
+    timerWrapHome.parentNode.insertBefore(timerWrapEl, timerWrapHome.nextSibling);
+    resetFsTouch();
+  }
+  function resetFsTouch() {
+    fsTouchIds.clear();
+    fsReady = false;
+    if (fsArmTimeout) { clearTimeout(fsArmTimeout); fsArmTimeout = null; }
+    fsOverlay.classList.remove('mc-fs-armed');
+  }
+
+  if (fsOpenBtn) fsOpenBtn.addEventListener('click', openFsTimer);
+  if (fsCloseBtn) fsCloseBtn.addEventListener('click', closeFsTimer);
+
+  if (fsOverlay) {
+    fsOverlay.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (timerState === 'running') {
+        stopSolveTimer();
+        fsOverlay.classList.remove('mc-fs-running', 'mc-fs-armed');
+        resetFsTouch();
+        return;
+      }
+      for (const t of e.changedTouches) fsTouchIds.add(t.identifier);
+      if (fsTouchIds.size >= 2 && !fsReady && !fsArmTimeout) {
+        fsArmTimeout = setTimeout(() => {
+          fsArmTimeout = null;
+          if (fsTouchIds.size >= 2) {
+            fsReady = true;
+            fsOverlay.classList.add('mc-fs-armed');
+            armTimer();
+            if (navigator.vibrate) navigator.vibrate(15);
+          }
+        }, FS_HOLD_MS);
+      }
+    }, { passive: false });
+
+    fsOverlay.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      for (const t of e.changedTouches) fsTouchIds.delete(t.identifier);
+      if (fsArmTimeout && fsTouchIds.size < 2) {
+        clearTimeout(fsArmTimeout);
+        fsArmTimeout = null;
+      }
+      if (fsReady && fsTouchIds.size < 2) {
+        fsReady = false;
+        fsOverlay.classList.remove('mc-fs-armed');
+        fsOverlay.classList.add('mc-fs-running');
+        releaseTimer();
+      }
+    }, { passive: false });
+
+    fsOverlay.addEventListener('touchcancel', () => { resetFsTouch(); });
+  }
 
   // ---------- Manual entry ----------
 
