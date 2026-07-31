@@ -1162,8 +1162,15 @@ body.mc-mobile-app .mc-fs-timer-btn {
 }
 
 /* Cubex-style fullscreen timer */
+/* Cubex-style fullscreen timer — rendered rotated 90° so it reads correctly
+   when the phone is held sideways (landscape), regardless of OS orientation lock */
 .mc-fs-timer-overlay.open {
-  display: flex; position: fixed; inset: 0; z-index: 3000;
+  display: flex; position: fixed;
+  top: 0; left: 0;
+  width: 100vh; height: 100vw;
+  transform-origin: top left;
+  transform: rotate(90deg) translateY(-100%);
+  z-index: 3000;
   background: #b5140f;
   flex-direction: column; align-items: center; justify-content: center;
   touch-action: none; transition: background 0.15s ease;
@@ -4936,10 +4943,21 @@ body.mc-mobile-app .mc-fs-timer-btn {
   }
 
   if (fsOpenBtn) fsOpenBtn.addEventListener('click', openFsTimer);
-  if (fsCloseBtn) fsCloseBtn.addEventListener('click', closeFsTimer);
+  if (fsCloseBtn) {
+    fsCloseBtn.addEventListener('click', closeFsTimer);
+    // The overlay's own touchstart/touchend below call preventDefault(), which
+    // suppresses the synthetic click on touch devices — so give the close
+    // button its own touch handling, stopped before it reaches the overlay.
+    fsCloseBtn.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      closeFsTimer();
+    }, { passive: false });
+  }
 
   if (fsOverlay) {
     fsOverlay.addEventListener('touchstart', (e) => {
+      if (e.target.closest('#mc-fs-close')) return;
       e.preventDefault();
       if (timerState === 'running') {
         stopSolveTimer();
@@ -4962,6 +4980,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
     }, { passive: false });
 
     fsOverlay.addEventListener('touchend', (e) => {
+      if (e.target.closest('#mc-fs-close')) return;
       e.preventDefault();
       for (const t of e.changedTouches) fsTouchIds.delete(t.identifier);
       if (fsArmTimeout && fsTouchIds.size < 2) {
