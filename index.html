@@ -1168,10 +1168,15 @@ body.mc-mobile-app .mc-bottomnav {
 .mc-bottomnav-btn {
   flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
   background: none; border: none; color: var(--muted); font-size: 10.5px;
-  padding: 6px 2px; cursor: pointer; font-family: inherit;
+  padding: 6px 2px; cursor: pointer; font-family: inherit; position: relative;
 }
-.mc-bottomnav-btn .mc-bn-icon { font-size: 19px; line-height: 1; }
+.mc-bottomnav-btn .mc-bn-icon { font-size: 19px; line-height: 1; position: relative; }
 .mc-bottomnav-btn.active { color: var(--blue); }
+.mc-bottomnav-btn.mc-has-dot .mc-bn-icon::after {
+  content: ''; position: absolute; top: -1px; right: -3px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--red); border: 1.5px solid var(--panel);
+}
 
 body.mc-mobile-app .mc-fs-timer-btn {
   display: inline-flex; align-items: center; gap: 6px; margin-left: 8px;
@@ -3175,6 +3180,8 @@ body.mc-mobile-app .mc-fs-timer-btn {
         timerEl.classList.add('pb-flash');
         playPbChime();
         if (navigator.vibrate) navigator.vibrate([15, 40, 15]);
+        mcNavBadgeState.newPB = true;
+        if (typeof updateNavBadges === 'function') updateNavBadges();
       }
     }
   }
@@ -4213,6 +4220,8 @@ body.mc-mobile-app .mc-fs-timer-btn {
 
     const incoming = rels.filter(f => f.status === 'pending' && f.addressee_id === currentUser.id);
     const accepted = rels.filter(f => f.status === 'accepted');
+    mcNavBadgeState.friendRequest = incoming.length > 0;
+    if (typeof updateNavBadges === 'function') updateNavBadges();
 
     const otherIds = [
       ...incoming.map(f => f.requester_id),
@@ -4472,6 +4481,8 @@ body.mc-mobile-app .mc-fs-timer-btn {
       // Skip if that conversation is already open and the tab is focused — the
       // message is already visible on screen, no need to also notify.
       if (currentDmFriendId === m.sender_id && document.hasFocus()) continue;
+      mcNavBadgeState.newMessage = true;
+      if (typeof updateNavBadges === 'function') updateNavBadges();
       const name = await nameForUserId(m.sender_id);
       showMessageNotification(m.sender_id, name, m.message);
     }
@@ -5072,12 +5083,27 @@ body.mc-mobile-app .mc-fs-timer-btn {
   const MC_VIEW_ORDER = ['timer', 'stats', 'community', 'tools'];
   let mcCurrentView = null;
 
+  // Small unread-style dots on the bottom nav: Community lights up for a
+  // pending friend request or an unread DM, Stats lights up after a fresh PB.
+  const mcNavBadgeState = { friendRequest: false, newMessage: false, newPB: false };
+  function updateNavBadges() {
+    bottomNavBtns.forEach(b => {
+      if (b.dataset.mcNav === 'community') {
+        b.classList.toggle('mc-has-dot', mcNavBadgeState.friendRequest || mcNavBadgeState.newMessage);
+      } else if (b.dataset.mcNav === 'stats') {
+        b.classList.toggle('mc-has-dot', mcNavBadgeState.newPB);
+      }
+    });
+  }
+
   function showMcView(name) {
     if (name === mcCurrentView) return;
     if (mcCurrentView !== null && navigator.vibrate) navigator.vibrate(8);
     mcCurrentView = name;
     mcViews.forEach(v => v.classList.toggle('mc-view-active', v.dataset.mcView === name));
     bottomNavBtns.forEach(b => b.classList.toggle('active', b.dataset.mcNav === name));
+    if (name === 'community') { mcNavBadgeState.friendRequest = false; mcNavBadgeState.newMessage = false; updateNavBadges(); }
+    if (name === 'stats') { mcNavBadgeState.newPB = false; updateNavBadges(); }
     window.scrollTo(0, 0);
     // Charts/canvases in a previously display:none tab can render at 0 width —
     // nudging a resize event after the tab becomes visible fixes that.
