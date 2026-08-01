@@ -1165,10 +1165,9 @@ body.mc-mobile-app .mc-fs-timer-btn {
    when the phone is held sideways (landscape), regardless of OS orientation lock */
 .mc-fs-timer-overlay.open {
   display: flex; position: fixed;
-  top: 0; left: 0;
+  top: 50%; left: 50%;
   width: 100vh; height: 100vw;
-  transform-origin: top left;
-  transform: rotate(90deg) translateY(-100%);
+  transform: translate(-50%, -50%) rotate(90deg) scale(1.08);
   z-index: 3000;
   flex-direction: column;
   background: var(--yellow);
@@ -1207,6 +1206,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
 .mc-fs-timer-overlay .mc-timer-digits {
   font-size: 12vw; font-family: 'Courier New', monospace;
   font-variant-numeric: tabular-nums; letter-spacing: 2px;
+  font-kerning: none;
 }
 .mc-fs-timer-overlay .mc-timer-hint { font-size: 15px; margin: 6px 0 4px; }
 .mc-fs-timer-overlay .mc-fs-timer-btn { display: inline-flex; margin: 0 0 10px; }
