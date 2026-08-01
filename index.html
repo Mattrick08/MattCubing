@@ -33,7 +33,6 @@
     padding: 0;
     background: #15161c;
     min-height: 100%;
-    overscroll-behavior-y: contain;
   }
 
   html.mc-light, html.mc-light body {
@@ -1253,10 +1252,10 @@ body.mc-mobile-app .mc-fs-timer-btn {
 }
 .mc-fs-bbtn {
   flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
-  background: none; border: none; color: rgba(255,255,255,0.85); font-size: 10.5px;
-  padding: 4px 1px; cursor: pointer; font-family: inherit; font-weight: 600;
+  background: none; border: none; color: rgba(255,255,255,0.85); font-size: 12px;
+  padding: 4px 2px; cursor: pointer; font-family: inherit; font-weight: 600;
 }
-.mc-fs-bicon { font-size: 16px; }
+.mc-fs-bicon { font-size: 17px; }
 .mc-fs-bbtn-toggle-row { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
 .mc-fs-inspection-switch {
   position: relative; display: inline-block; width: 34px; height: 20px; cursor: pointer;
@@ -1871,7 +1870,6 @@ body.mc-mobile-app .mc-fs-timer-btn {
     <div class="mc-fs-help-panel" id="mc-fs-help-panel">Hold both pads until they turn green, then let go of both fingers at the same time to start. Touch anywhere to stop.</div>
     <div class="mc-fs-bottombar">
       <button type="button" class="mc-fs-bbtn" id="mc-fs-back-btn"><span class="mc-fs-bicon">◀</span>Back</button>
-      <button type="button" class="mc-fs-bbtn" id="mc-fs-scramble-btn"><span class="mc-fs-bicon">🎲</span>Scramble</button>
       <div class="mc-fs-bbtn-toggle-row">
         <span class="mc-fs-inspection-switch" id="mc-fs-inspection-switch"><span class="mc-fs-insp-track"></span><span class="mc-fs-insp-knob"></span></span>
         <span style="font-size:11px; font-weight:600;">15s Inspection</span>
@@ -5059,7 +5057,6 @@ body.mc-mobile-app .mc-fs-timer-btn {
   const fsOverlay = document.getElementById('mc-fs-timer-overlay');
   const fsOpenBtn = document.getElementById('mc-fs-timer-open');
   const fsBackBtn = document.getElementById('mc-fs-back-btn');
-  const fsScrambleBtn = document.getElementById('mc-fs-scramble-btn');
   const fsRecordsBtn = document.getElementById('mc-fs-records-btn');
   const fsHelpBtn = document.getElementById('mc-fs-help-btn');
   const fsHelpPanel = document.getElementById('mc-fs-help-panel');
@@ -5176,10 +5173,6 @@ body.mc-mobile-app .mc-fs-timer-btn {
     btn.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); handler(); }, { passive: false });
   }
   fsBindBottomBtn(fsBackBtn, closeFsTimer);
-  fsBindBottomBtn(fsScrambleBtn, () => {
-    const btn = document.getElementById('mc-scramble-refresh');
-    if (btn) btn.click();
-  });
   fsBindBottomBtn(fsRecordsBtn, () => {
     closeFsTimer();
     if (isMobileApp) showMcView('stats');
