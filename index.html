@@ -692,7 +692,18 @@
   .mc-badge-pin:hover { border-color: var(--blue); color: var(--blue); }
   .mc-badge-pin.mc-pinned { background: var(--blue); border-color: var(--blue); color: #fff; }
   .mc-flair { font-size: 12px; margin-left: 4px; white-space: nowrap; }
-  .mc-dev-tag { font-size: 12px; margin-left: 4px; white-space: nowrap; filter: drop-shadow(0 0 2px rgba(255,212,0,0.6)); }
+  .mc-dev-tag {
+    display: inline-flex; align-items: center; gap: 3px; vertical-align: middle;
+    font-size: 9.5px; font-weight: 800; letter-spacing: 0.4px; color: #fff;
+    padding: 2px 7px 2px 5px; border-radius: 999px; margin-left: 5px; white-space: nowrap;
+    background: linear-gradient(90deg, #ff8a3d, #ffd400, #12a454, #378ADD, #a78bfa, #ff8a3d);
+    background-size: 300% 100%;
+    animation: mcDevTagShift 3s linear infinite;
+  }
+  @keyframes mcDevTagShift { to { background-position: -300% 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .mc-dev-tag { animation: none; }
+  }
 
   .mc-achievement-toast {
     background: var(--panel); border: 1px solid var(--yellow); border-radius: 10px;
@@ -3954,7 +3965,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
   // separate from the 3 pinned flair slots, which stay free for anyone to use as normal.
   function devTagHtml(userId) {
     if (userId !== CREATOR_USER_ID) return '';
-    return `<span class="mc-dev-tag" title="Architect — Built MattCubing">🛠️</span>`;
+    return `<span class="mc-dev-tag" title="Architect — Built MattCubing">🛠️ DEV</span>`;
   }
 
   function render() {
