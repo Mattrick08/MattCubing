@@ -1209,7 +1209,9 @@ body.mc-mobile-app .mc-fs-timer-btn {
   font-kerning: none;
 }
 .mc-fs-timer-overlay .mc-timer-hint { font-size: 15px; margin: 6px 0 4px; }
-.mc-fs-timer-overlay .mc-fs-timer-btn { display: inline-flex; margin: 0 0 10px; }
+.mc-fs-timer-overlay .mc-fs-timer-btn {
+  display: inline-flex; position: absolute; top: 14px; right: 14px; margin: 0; z-index: 5;
+}
 
 .mc-fs-ministats { display: flex; justify-content: center; gap: 10px; margin-top: 10px; }
 .mc-fs-mini { text-align: center; background: rgba(0,0,0,0.22); border-radius: 10px; padding: 6px 14px; }
