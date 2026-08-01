@@ -33,6 +33,7 @@
     padding: 0;
     background: #15161c;
     min-height: 100%;
+    overscroll-behavior-y: contain;
   }
 
   html.mc-light, html.mc-light body {
@@ -1562,15 +1563,15 @@ body.mc-mobile-app .mc-fs-timer-btn {
             <div class="mc-entry-row">
               <div class="mc-entry-field">
                 <label for="mc-in-min">Min</label>
-                <input type="number" id="mc-in-min" min="0" placeholder="0">
+                <input type="number" id="mc-in-min" min="0" placeholder="0" inputmode="numeric" pattern="[0-9]*" maxlength="2">
               </div>
               <div class="mc-entry-field">
                 <label for="mc-in-sec">Sec</label>
-                <input type="number" id="mc-in-sec" min="0" max="59" placeholder="00">
+                <input type="number" id="mc-in-sec" min="0" max="59" placeholder="00" inputmode="numeric" pattern="[0-9]*" maxlength="2">
               </div>
               <div class="mc-entry-field">
                 <label for="mc-in-ms">Ms</label>
-                <input type="number" id="mc-in-ms" min="0" max="999" placeholder="000">
+                <input type="number" id="mc-in-ms" min="0" max="999" placeholder="000" inputmode="numeric" pattern="[0-9]*" maxlength="3">
               </div>
             </div>
             <button class="mc-add-btn" id="mc-add-btn">Add time</button>
@@ -3182,6 +3183,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
         void timerEl.offsetWidth;
         timerEl.classList.add('pb-flash');
         playPbChime();
+        if (navigator.vibrate) navigator.vibrate([15, 40, 15]);
       }
     }
   }
@@ -3785,6 +3787,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
   function showAchievementToast(achievement) {
     const wrap = document.getElementById('mc-achievement-toast-wrap');
     if (!wrap) return;
+    if (navigator.vibrate) navigator.vibrate([10, 30, 10, 30, 20]);
     const toast = document.createElement('div');
     toast.className = 'mc-achievement-toast';
     toast.innerHTML = `
@@ -5011,8 +5014,13 @@ body.mc-mobile-app .mc-fs-timer-btn {
 
   const mcViews = document.querySelectorAll('.mc-view');
   const bottomNavBtns = document.querySelectorAll('.mc-bottomnav-btn');
+  const MC_VIEW_ORDER = ['timer', 'stats', 'community', 'tools'];
+  let mcCurrentView = null;
 
   function showMcView(name) {
+    if (name === mcCurrentView) return;
+    if (mcCurrentView !== null && navigator.vibrate) navigator.vibrate(8);
+    mcCurrentView = name;
     mcViews.forEach(v => v.classList.toggle('mc-view-active', v.dataset.mcView === name));
     bottomNavBtns.forEach(b => b.classList.toggle('active', b.dataset.mcNav === name));
     window.scrollTo(0, 0);
@@ -5022,6 +5030,29 @@ body.mc-mobile-app .mc-fs-timer-btn {
   }
   bottomNavBtns.forEach(b => b.addEventListener('click', () => showMcView(b.dataset.mcNav)));
   if (isMobileApp) showMcView('timer');
+
+  // Swipe left/right between tabs, mirroring the bottom nav order.
+  if (isMobileApp) {
+    const mcAppEl = document.getElementById('mc-app');
+    let mcSwipeStartX = null, mcSwipeStartY = null;
+    mcAppEl.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) { mcSwipeStartX = null; return; }
+      mcSwipeStartX = e.touches[0].clientX;
+      mcSwipeStartY = e.touches[0].clientY;
+    }, { passive: true });
+    mcAppEl.addEventListener('touchend', (e) => {
+      if (mcSwipeStartX === null) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - mcSwipeStartX;
+      const dy = t.clientY - mcSwipeStartY;
+      mcSwipeStartX = null;
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return; // mostly-vertical or too short: ignore, let normal scroll happen
+      const idx = MC_VIEW_ORDER.indexOf(mcCurrentView);
+      if (idx === -1) return;
+      const nextIdx = dx < 0 ? idx + 1 : idx - 1; // swipe left -> next tab, swipe right -> previous tab
+      if (nextIdx >= 0 && nextIdx < MC_VIEW_ORDER.length) showMcView(MC_VIEW_ORDER[nextIdx]);
+    }, { passive: true });
+  }
 
   // ---- Fullscreen timer (Cubex-style: hold both hand pads, release both to start) ----
   const fsOverlay = document.getElementById('mc-fs-timer-overlay');
@@ -5225,6 +5256,14 @@ body.mc-mobile-app .mc-fs-timer-btn {
   addBtn.addEventListener('click', handleAdd);
   [inMin, inSec, inMs].forEach(el => {
     el.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAdd(); });
+  });
+  // Auto-advance min -> sec -> ms once a field looks "full", so typing a time
+  // on a phone keypad doesn't require tapping between fields each time.
+  const mcEntryAdvanceMap = [[inMin, inSec, 2], [inSec, inMs, 2]];
+  mcEntryAdvanceMap.forEach(([from, to, maxDigits]) => {
+    from.addEventListener('input', () => {
+      if (from.value.length >= maxDigits) to.focus();
+    });
   });
 
   // ---------- Arena Mode ----------
@@ -6344,7 +6383,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
       }
     });
   }
- 
+
   // ---------- Init ----------
 
   updateOfflineBanner();
