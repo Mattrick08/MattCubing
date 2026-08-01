@@ -692,18 +692,16 @@
   .mc-badge-pin:hover { border-color: var(--blue); color: var(--blue); }
   .mc-badge-pin.mc-pinned { background: var(--blue); border-color: var(--blue); color: #fff; }
   .mc-flair { font-size: 12px; margin-left: 4px; white-space: nowrap; }
-  .mc-scramble-name { font-family: 'Courier New', monospace; letter-spacing: 0.5px; }
+  .mc-scramble-name {
+    font-family: 'Courier New', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', monospace;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  }
   .mc-dev-tag {
     display: inline-flex; align-items: center; gap: 3px; vertical-align: middle;
     font-size: 9.5px; font-weight: 800; letter-spacing: 0.4px; color: #fff;
     padding: 2px 7px 2px 5px; border-radius: 999px; margin-left: 5px; white-space: nowrap;
-    background: linear-gradient(90deg, #ff8a3d, #ffd400, #12a454, #378ADD, #a78bfa, #ff8a3d);
-    background-size: 300% 100%;
-    animation: mcDevTagShift 3s linear infinite;
-  }
-  @keyframes mcDevTagShift { to { background-position: -300% 0; } }
-  @media (prefers-reduced-motion: reduce) {
-    .mc-dev-tag { animation: none; }
+    background: var(--blue);
   }
 
   .mc-achievement-toast {
@@ -4560,7 +4558,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
         <div class="mc-leaderboard-row-wrap">
           <div class="mc-leaderboard-row ${row.user_id === currentUser.id ? 'mc-is-me' : ''}">
             <span class="mc-leaderboard-rank">#${i + 1}</span>
-            <span class="${nameClass}" ${nameAttr}>${escapeHtml(leaderboardProfileMap[row.user_id]) || 'Unknown'}${flairHtml(leaderboardFlairMap[row.user_id])}</span>
+            <span class="${nameClass}" ${nameAttr}>${nameHtml(row.user_id, leaderboardProfileMap[row.user_id])}${devTagHtml(row.user_id)}${flairHtml(leaderboardFlairMap[row.user_id])}</span>
             <span class="mc-leaderboard-value">${valueDisplay}</span>
           </div>
           ${scramblePanel}
