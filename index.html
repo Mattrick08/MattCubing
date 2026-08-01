@@ -669,21 +669,6 @@
   .mc-badge-card.mc-tier-silver { box-shadow: inset 0 0 0 1px rgba(185,191,201,0.5); }
   .mc-badge-card.mc-tier-gold { box-shadow: inset 0 0 0 1px rgba(255,212,0,0.5); }
   .mc-badge-card.mc-tier-diamond { box-shadow: inset 0 0 0 1px rgba(139,92,246,0.55); }
-  .mc-badge-card.mc-tier-creator { position: relative; z-index: 0; }
-  .mc-badge-card.mc-tier-creator::before {
-    content: ''; position: absolute; inset: -2px; border-radius: 14px; z-index: -1;
-    background: conic-gradient(from var(--mc-creator-angle, 0deg), #ff8a3d, #ffd400, #12a454, #378ADD, #a78bfa, #ff8a3d);
-    animation: mcCreatorSpin 4s linear infinite;
-  }
-  @property --mc-creator-angle {
-    syntax: '<angle>'; initial-value: 0deg; inherits: false;
-  }
-  @keyframes mcCreatorSpin {
-    to { --mc-creator-angle: 360deg; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .mc-badge-card.mc-tier-creator::before { animation: none; }
-  }
   .mc-badge-pin {
     position: absolute; top: 6px; right: 6px; background: var(--bg); border: 1px solid var(--border);
     color: var(--muted); border-radius: 6px; font-size: 9.5px; font-weight: 700; padding: 2px 5px;
@@ -701,7 +686,14 @@
     display: inline-flex; align-items: center; gap: 3px; vertical-align: middle;
     font-size: 9.5px; font-weight: 800; letter-spacing: 0.4px; color: #fff;
     padding: 2px 7px 2px 5px; border-radius: 999px; margin-left: 5px; white-space: nowrap;
-    background: var(--blue);
+    background: linear-gradient(90deg, #8b1e3f, #2d1b4e, #8b1e3f);
+    background-size: 300% 100%;
+    animation: mcDevTagShift 4s linear infinite;
+    box-shadow: 0 0 8px rgba(139,30,63,0.4);
+  }
+  @keyframes mcDevTagShift { to { background-position: -300% 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .mc-dev-tag { animation: none; }
   }
 
   .mc-achievement-toast {
@@ -3645,7 +3637,6 @@ body.mc-mobile-app .mc-fs-timer-btn {
 
     { code: 'clean_20', name: 'Clean Sheet', desc: '20 solves in a row without a DNF', icon: '🧼', tier: 'bronze', check: ctx => ctx.cleanStreak >= 20 },
     { code: 'clean_100', name: 'Ice in Your Veins', desc: '100 solves in a row without a DNF', icon: '🧊', tier: 'gold', check: ctx => ctx.cleanStreak >= 100 },
-    { code: 'creator', name: 'Architect', desc: 'Built MattCubing', icon: '🛠️', tier: 'creator', check: ctx => ctx.userId === '49a70e57-53ee-4e04-9422-37c74e18e1cf' },
   ];
   const ACHIEVEMENTS_BY_CODE = {};
   ACHIEVEMENTS.forEach(a => { ACHIEVEMENTS_BY_CODE[a.code] = a; });
