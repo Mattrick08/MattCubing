@@ -692,6 +692,7 @@
   .mc-badge-pin:hover { border-color: var(--blue); color: var(--blue); }
   .mc-badge-pin.mc-pinned { background: var(--blue); border-color: var(--blue); color: #fff; }
   .mc-flair { font-size: 12px; margin-left: 4px; white-space: nowrap; }
+  .mc-scramble-name { font-family: 'Courier New', monospace; letter-spacing: 0.5px; }
   .mc-dev-tag {
     display: inline-flex; align-items: center; gap: 3px; vertical-align: middle;
     font-size: 9.5px; font-weight: 800; letter-spacing: 0.4px; color: #fff;
@@ -3970,6 +3971,71 @@ body.mc-mobile-app .mc-fs-timer-btn {
     if (userId !== CREATOR_USER_ID) return '';
     return `<span class="mc-dev-tag" title="Architect — Built MattCubing">🛠️ DEV</span>`;
   }
+  // Wraps the creator's own name in a span the scramble-name animator can find;
+  // everyone else's name just gets the normal escaped text, unchanged.
+  function nameHtml(userId, rawName) {
+    const safe = escapeHtml(rawName || 'Unknown');
+    if (userId !== CREATOR_USER_ID) return safe;
+    return `<span class="mc-scramble-name">${safe}</span>`;
+  }
+
+  // Cube-notation "shuffle then reassemble" effect for the creator's name —
+  // scoped purely to display via .mc-scramble-name, everyone else is untouched.
+  class MCTextScramble {
+    constructor(el) {
+      this.el = el;
+      this.chars = "RUFLDB'2";
+      this.frame = 0;
+      this.queue = [];
+      this.frameRequest = null;
+    }
+    setText(text) {
+      const from = this.el.textContent;
+      const length = Math.max(from.length, text.length);
+      this.queue = [];
+      for (let i = 0; i < length; i++) {
+        const start = Math.floor(Math.random() * 20);
+        this.queue.push({ from: from[i] || '', to: text[i] || '', start, end: start + Math.floor(Math.random() * 20), char: '' });
+      }
+      cancelAnimationFrame(this.frameRequest);
+      this.frame = 0;
+      this.update();
+    }
+    update() {
+      let output = '';
+      let complete = 0;
+      for (let i = 0; i < this.queue.length; i++) {
+        const q = this.queue[i];
+        if (this.frame >= q.end) { complete++; output += q.to; }
+        else if (this.frame >= q.start) {
+          if (!q.char || Math.random() < 0.28) q.char = this.chars[Math.floor(Math.random() * this.chars.length)];
+          output += `<span style="opacity:0.6;">${q.char}</span>`;
+        } else output += q.from;
+      }
+      this.el.innerHTML = output;
+      if (complete < this.queue.length) {
+        this.frameRequest = requestAnimationFrame(() => this.update());
+        this.frame++;
+      }
+    }
+  }
+  // Every second, look for any newly-rendered .mc-scramble-name spans (lists
+  // re-render from scratch, so this catches them wherever/whenever they show
+  // up) and start their loop; each instance checks it's still attached before
+  // re-triggering, so it stops cleanly instead of animating a detached node forever.
+  setInterval(() => {
+    document.querySelectorAll('.mc-scramble-name:not([data-scramble-on])').forEach(el => {
+      el.setAttribute('data-scramble-on', '1');
+      const original = el.textContent;
+      const scrambler = new MCTextScramble(el);
+      const loop = () => {
+        if (!document.body.contains(el)) return;
+        scrambler.setText(original);
+        setTimeout(loop, 5000);
+      };
+      loop();
+    });
+  }, 1000);
 
   function render() {
     const stats = computeStats();
@@ -4124,7 +4190,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
       }
       html += `
         <div class="mc-person-row">
-          <span class="mc-person-name">${escapeHtml(p.display_name)}${devTagHtml(p.id)}</span>
+          <span class="mc-person-name">${nameHtml(p.id, p.display_name)}${devTagHtml(p.id)}</span>
           <div class="mc-person-actions">${actionHtml}</div>
         </div>
       `;
@@ -4172,7 +4238,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
       friendRequestsSection.style.display = 'block';
       friendRequestsList.innerHTML = incoming.map(f => `
         <div class="mc-person-row">
-          <span class="mc-person-name">${escapeHtml(profileMap[f.requester_id]) || 'Unknown'}${devTagHtml(f.requester_id)}</span>
+          <span class="mc-person-name">${nameHtml(f.requester_id, profileMap[f.requester_id])}${devTagHtml(f.requester_id)}</span>
           <div class="mc-person-actions">
             <button class="mc-person-btn accept" data-accept="${f.id}">Accept</button>
             <button class="mc-person-btn decline" data-decline="${f.id}">Decline</button>
@@ -4201,7 +4267,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
           const whenText = hoursAgo < 1 ? 'just now' : hoursAgo < 24 ? `${hoursAgo}h ago` : `${Math.floor(hoursAgo / 24)}d ago`;
           return `
             <div class="mc-person-row">
-              <span>🎉 <strong>${escapeHtml(profileMap[item.otherId]) || 'Unknown'}${devTagHtml(item.otherId)}</strong> set a new PB: ${formatTime(item.stat.best_ms)}</span>
+              <span>🎉 <strong>${nameHtml(item.otherId, profileMap[item.otherId])}${devTagHtml(item.otherId)}</strong> set a new PB: ${formatTime(item.stat.best_ms)}</span>
               <span style="margin-left:auto; color:var(--muted); font-size:11.5px;">${whenText}</span>
             </div>
           `;
@@ -4217,7 +4283,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
         return `
           <div class="mc-person-row">
             <div>
-              <div class="mc-person-name">${escapeHtml(profileMap[otherId]) || 'Unknown'}${devTagHtml(otherId)}${flairHtml(flairMap[otherId])}</div>
+              <div class="mc-person-name">${nameHtml(otherId, profileMap[otherId])}${devTagHtml(otherId)}${flairHtml(flairMap[otherId])}</div>
               <div class="mc-person-stats">${personStatsLine(stat)}</div>
             </div>
             <div class="mc-person-actions">
@@ -4656,7 +4722,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
       ? attempts.map((a, i) => `
           <div class="mc-leaderboard-row ${a.user_id === currentUser.id ? 'mc-is-me' : ''}">
             <span class="mc-leaderboard-rank">#${i + 1}</span>
-            <span class="mc-leaderboard-name">${escapeHtml(profileMap[a.user_id]) || 'Unknown'}${devTagHtml(a.user_id)}</span>
+            <span class="mc-leaderboard-name">${nameHtml(a.user_id, profileMap[a.user_id])}${devTagHtml(a.user_id)}</span>
             <span class="mc-leaderboard-value">${formatTime(a.ms)}</span>
           </div>
         `).join('')
@@ -5402,7 +5468,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
 
     arenaPublicListEl.innerHTML = data.map(a => `
       <div class="mc-arena-public-row">
-        <span>Room by ${escapeHtml(profileMap[a.created_by]) || 'Unknown'}${devTagHtml(a.created_by)}</span>
+        <span>Room by ${nameHtml(a.created_by, profileMap[a.created_by])}${devTagHtml(a.created_by)}</span>
         <span style="color:var(--muted); font-size:11.5px;">${countByArena[a.id] || 0} joined</span>
         <div style="display:flex; gap:6px; margin-left:auto;">
           <button class="mc-scramble-refresh" data-watch-arena="${a.id}">Watch</button>
@@ -5563,7 +5629,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
         return `
           <div class="mc-arena-participant-row ${p.disconnected ? 'mc-disconnected' : ''}">
             <span class="mc-arena-ready-dot ${p.ready ? 'mc-ready' : ''}"></span>
-            <span class="mc-arena-participant-name">${escapeHtml(profileMap[p.user_id]) || 'Unknown'}${devTagHtml(p.user_id)}</span>
+            <span class="mc-arena-participant-name">${nameHtml(p.user_id, profileMap[p.user_id])}${devTagHtml(p.user_id)}</span>
             <span class="mc-arena-participant-status">${statusText}</span>
           </div>
         `;
@@ -5697,7 +5763,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
       sorted.map((p, i) => `
         <div class="mc-arena-result-row ${i === 0 && !p.dnf ? 'mc-winner' : ''}">
           <span class="mc-arena-rank">#${i + 1}</span>
-          <span style="flex:1; font-weight:600;">${escapeHtml(profileMap[p.user_id]) || 'Unknown'}${devTagHtml(p.user_id)}${i === 0 && !p.dnf ? ' 🏆' : ''}</span>
+          <span style="flex:1; font-weight:600;">${nameHtml(p.user_id, profileMap[p.user_id])}${devTagHtml(p.user_id)}${i === 0 && !p.dnf ? ' 🏆' : ''}</span>
           <span style="font-family:var(--mono); font-weight:700; ${p.dnf ? 'color:var(--red);' : ''}">${p.dnf ? 'DNF' : formatTime(p.finished_ms)}</span>
         </div>
       `).join('') +
@@ -5774,7 +5840,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
     const ids = [...new Set(data.map(m => m.user_id))];
     const profileMap = await fetchProfilesByIds(ids);
     arenaChatLogEl.innerHTML = data.map(m => `
-      <div class="mc-arena-chat-msg"><span class="mc-arena-chat-name">${escapeHtml(profileMap[m.user_id]) || 'Unknown'}${devTagHtml(m.user_id)}:</span>${escapeHtml(m.message)}</div>
+      <div class="mc-arena-chat-msg"><span class="mc-arena-chat-name">${nameHtml(m.user_id, profileMap[m.user_id])}${devTagHtml(m.user_id)}:</span>${escapeHtml(m.message)}</div>
     `).join('');
     arenaChatLogEl.scrollTop = arenaChatLogEl.scrollHeight;
   }
