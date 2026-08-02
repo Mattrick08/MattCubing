@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>MattCubing — Rubik's Cube Solve Timer</title>
 <meta name="description" content="Track your Rubik's cube solve times across every trial — timer, stats, and progress chart, saved to your account.">
 <link rel="manifest" href="manifest.json">
@@ -234,6 +234,7 @@
     cursor: pointer;
   }
   .mc-scramble-refresh:hover { border-color: var(--blue); }
+  #mc-keep-scramble-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
   .mc-scramble-input {
     width: 100%;
     background: var(--bg);
@@ -1359,6 +1360,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
         <button class="mc-scramble-refresh" id="mc-scramble-share">Share</button>
         <button class="mc-scramble-refresh" id="mc-scramble-image">📷 Image</button>
         <button class="mc-scramble-refresh" id="mc-scramble-refresh">New scramble</button>
+        <button type="button" class="mc-scramble-refresh" id="mc-keep-scramble-btn" title="Keep the same scramble after each solve">🔒 Keep scramble</button>
         <label style="position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0;">
           <input type="checkbox" id="mc-scramble-toggle" checked style="opacity:0; width:0; height:0;">
           <span id="mc-scramble-track" style="position:absolute; inset:0; background:var(--panel-2); border:1px solid var(--border); border-radius:999px; cursor:pointer; transition:background 0.15s ease;"></span>
@@ -2136,6 +2138,13 @@ body.mc-mobile-app .mc-fs-timer-btn {
   }
 
   scrambleRefreshBtn.addEventListener('click', newScramble);
+
+  let keepScramble = false;
+  const keepScrambleBtn = document.getElementById('mc-keep-scramble-btn');
+  keepScrambleBtn.addEventListener('click', () => {
+    keepScramble = !keepScramble;
+    keepScrambleBtn.classList.toggle('active', keepScramble);
+  });
 
   scrambleEditBtn.addEventListener('click', () => {
     scrambleInputEl.value = currentScramble;
@@ -4962,7 +4971,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
     const scrambleForThisSolve = useScramble ? currentScramble : '';
     pendingOvertimeMs = 0;
     await addSolve(raw, overtime, scrambleForThisSolve, true);
-    newScramble();
+    if (!keepScramble) newScramble();
   }
 
   let timerArmed = false;
@@ -5342,7 +5351,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
       return;
     }
     await addSolve(total, 0, useScramble ? currentScramble : '', true);
-    newScramble();
+    if (!keepScramble) newScramble();
     inMin.value = ''; inSec.value = ''; inMs.value = '';
     inMin.focus();
   }
