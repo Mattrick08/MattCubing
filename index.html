@@ -1298,12 +1298,43 @@ body.mc-mobile-app .mc-fs-timer-btn {
     </div>
     <div class="mc-header-right">
       <button class="mc-theme-toggle" id="mc-theme-toggle" title="Switch to light theme">🌙</button>
+      <button class="mc-icon-btn" id="mc-personalize-btn" title="Personalize">🎨</button>
       <div class="mc-account" id="mc-account" style="display:none;">
         <span id="mc-account-email"></span>
         <button class="mc-icon-btn" id="mc-account-edit-name" title="Change display name">✎</button>
         <button class="mc-icon-btn" id="mc-notif-toggle-btn" title="Turn on message notifications">🔕</button>
         <button class="mc-signout-btn" id="mc-signout-btn">Sign out</button>
       </div>
+    </div>
+  </div>
+
+  <div id="mc-custom-bg" style="position:fixed; inset:0; z-index:-1; background-size:cover; background-position:center; background-repeat:no-repeat; pointer-events:none; display:none;"></div>
+
+  <div id="mc-personalize-modal" style="display:none; position:fixed; inset:0; z-index:4000; background:rgba(0,0,0,0.55); align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:20px; max-width:420px; width:100%; max-height:85vh; overflow-y:auto;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <h3 style="margin:0; font-size:16px;">Personalize</h3>
+        <button type="button" id="mc-personalize-close" class="mc-icon-btn">✕</button>
+      </div>
+      <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">Background image</div>
+      <div id="mc-personalize-preview" style="width:100%; height:110px; border-radius:10px; border:1px solid var(--border); background:var(--panel-2); background-size:cover; background-position:center; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12.5px; margin-bottom:12px;">No background set</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
+        <button type="button" class="mc-scramble-refresh" id="mc-personalize-upload-btn">Choose image</button>
+        <button type="button" class="mc-scramble-refresh" id="mc-personalize-remove-btn">Remove background</button>
+        <input type="file" id="mc-personalize-file-input" accept="image/*" style="display:none;">
+      </div>
+      <div style="font-size:13px; color:var(--muted); margin-bottom:8px;">Save this background to:</div>
+      <div style="display:flex; gap:8px; margin-bottom:6px;">
+        <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
+          <input type="radio" name="mc-bg-scope" id="mc-bg-scope-device" value="device" checked> This device only
+        </label>
+      </div>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
+          <input type="radio" name="mc-bg-scope" id="mc-bg-scope-account" value="account"> My account (all devices)
+        </label>
+      </div>
+      <div id="mc-personalize-status" style="font-size:12px; color:var(--muted); min-height:16px;"></div>
     </div>
   </div>
 
@@ -3069,6 +3100,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
     if (data) {
       currentDisplayName = data.display_name;
       showApp(user);
+      if (typeof initBackground === 'function') initBackground(data.background_url);
       await fetchSolves();
       await loadAchievementsData();
       renderAchievementsPanel();
@@ -6494,6 +6526,135 @@ body.mc-mobile-app .mc-fs-timer-btn {
       }
     });
   }
+
+  // ---------- Custom background (personalize) ----------
+  // Sits in its own fixed layer behind everything (#mc-custom-bg, z-index:-1).
+  // Every card/button/leaderboard row keeps its normal opaque panel color from
+  // the dark/light theme — nothing here touches those, it only ever changes
+  // what's visible in the empty space behind them.
+  const BG_DEVICE_KEY = 'mc-bg-image-device';
+  const BG_SCOPE_KEY = 'mc-bg-scope';
+  const customBgEl = document.getElementById('mc-custom-bg');
+  const personalizeBtn = document.getElementById('mc-personalize-btn');
+  const personalizeModal = document.getElementById('mc-personalize-modal');
+  const personalizeClose = document.getElementById('mc-personalize-close');
+  const personalizePreview = document.getElementById('mc-personalize-preview');
+  const personalizeUploadBtn = document.getElementById('mc-personalize-upload-btn');
+  const personalizeRemoveBtn = document.getElementById('mc-personalize-remove-btn');
+  const personalizeFileInput = document.getElementById('mc-personalize-file-input');
+  const personalizeStatus = document.getElementById('mc-personalize-status');
+  const bgScopeDeviceRadio = document.getElementById('mc-bg-scope-device');
+  const bgScopeAccountRadio = document.getElementById('mc-bg-scope-account');
+
+  function applyBackgroundUrl(url) {
+    if (url) {
+      customBgEl.style.backgroundImage = `url("${url}")`;
+      customBgEl.style.display = 'block';
+      personalizePreview.style.backgroundImage = `url("${url}")`;
+      personalizePreview.textContent = '';
+    } else {
+      customBgEl.style.backgroundImage = '';
+      customBgEl.style.display = 'none';
+      personalizePreview.style.backgroundImage = '';
+      personalizePreview.textContent = 'No background set';
+    }
+  }
+
+  function getBgScope() {
+    try { return localStorage.getItem(BG_SCOPE_KEY) || 'device'; } catch (e) { return 'device'; }
+  }
+
+  // Called once on load — account scope wins if set (so it works the same on
+  // every device you sign into), otherwise falls back to this device's own image.
+  function initBackground(accountBgUrl) {
+    const scope = getBgScope();
+    if (bgScopeAccountRadio) bgScopeAccountRadio.checked = scope === 'account';
+    if (bgScopeDeviceRadio) bgScopeDeviceRadio.checked = scope !== 'account';
+    if (scope === 'account' && accountBgUrl) {
+      applyBackgroundUrl(accountBgUrl);
+      return;
+    }
+    let deviceUrl = null;
+    try { deviceUrl = localStorage.getItem(BG_DEVICE_KEY); } catch (e) {}
+    applyBackgroundUrl(deviceUrl);
+  }
+
+  if (personalizeBtn) personalizeBtn.addEventListener('click', () => { personalizeModal.style.display = 'flex'; });
+  if (personalizeClose) personalizeClose.addEventListener('click', () => { personalizeModal.style.display = 'none'; });
+  if (personalizeModal) personalizeModal.addEventListener('click', (e) => { if (e.target === personalizeModal) personalizeModal.style.display = 'none'; });
+  if (personalizeUploadBtn) personalizeUploadBtn.addEventListener('click', () => personalizeFileInput.click());
+
+  if (personalizeFileInput) {
+    personalizeFileInput.addEventListener('change', async () => {
+      const file = personalizeFileInput.files && personalizeFileInput.files[0];
+      if (!file) return;
+      if (file.size > 8 * 1024 * 1024) {
+        personalizeStatus.textContent = 'That file is a bit large (over 8MB) — it may be slow to load, especially for other devices.';
+      } else {
+        personalizeStatus.textContent = '';
+      }
+      const scope = bgScopeAccountRadio && bgScopeAccountRadio.checked ? 'account' : 'device';
+      try { localStorage.setItem(BG_SCOPE_KEY, scope); } catch (e) {}
+
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUrl = reader.result;
+        if (scope === 'device') {
+          try {
+            localStorage.setItem(BG_DEVICE_KEY, dataUrl);
+            applyBackgroundUrl(dataUrl);
+            personalizeStatus.textContent = 'Saved to this device.';
+          } catch (e) {
+            personalizeStatus.textContent = 'Could not save — the image may be too large for this browser to store locally.';
+          }
+        } else {
+          personalizeStatus.textContent = 'Uploading…';
+          try {
+            const path = `${currentUser.id}/background`;
+            const { error: uploadError } = await sb.storage.from('backgrounds').upload(path, file, { upsert: true, contentType: file.type });
+            if (uploadError) throw uploadError;
+            const { data: pub } = sb.storage.from('backgrounds').getPublicUrl(path);
+            const publicUrl = pub.publicUrl + '?t=' + Date.now();
+            const { error: updateError } = await sb.from('profiles').update({ background_url: publicUrl }).eq('id', currentUser.id);
+            if (updateError) throw updateError;
+            applyBackgroundUrl(publicUrl);
+            personalizeStatus.textContent = 'Saved to your account — it\'ll show up on every device you sign into.';
+          } catch (e) {
+            console.error('Background upload failed', e);
+            personalizeStatus.textContent = 'Upload failed. Make sure the "backgrounds" storage bucket exists (see setup notes).';
+          }
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (personalizeRemoveBtn) {
+    personalizeRemoveBtn.addEventListener('click', async () => {
+      const scope = bgScopeAccountRadio && bgScopeAccountRadio.checked ? 'account' : 'device';
+      if (scope === 'device') {
+        try { localStorage.removeItem(BG_DEVICE_KEY); } catch (e) {}
+        applyBackgroundUrl(null);
+        personalizeStatus.textContent = 'Removed from this device.';
+      } else {
+        try {
+          await sb.from('profiles').update({ background_url: null }).eq('id', currentUser.id);
+          applyBackgroundUrl(null);
+          personalizeStatus.textContent = 'Removed from your account.';
+        } catch (e) {
+          personalizeStatus.textContent = 'Could not remove — try again.';
+        }
+      }
+    });
+  }
+
+  [bgScopeDeviceRadio, bgScopeAccountRadio].forEach(radio => {
+    if (!radio) return;
+    radio.addEventListener('change', () => {
+      const scope = bgScopeAccountRadio.checked ? 'account' : 'device';
+      try { localStorage.setItem(BG_SCOPE_KEY, scope); } catch (e) {}
+    });
+  });
 
   // ---------- Init ----------
 
