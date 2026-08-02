@@ -1699,7 +1699,10 @@ body.mc-mobile-app .mc-fs-timer-btn {
 
         <!-- Lobby -->
         <div id="mc-arena-lobby">
-          <div class="mc-arena-create-row">
+          <div class="mc-friend-search-row">
+            <input type="text" id="mc-arena-custom-scramble-input" placeholder="Custom scramble (optional) — leave blank for random">
+          </div>
+          <div class="mc-arena-create-row" style="margin-top:8px;">
             <button class="mc-add-btn" id="mc-arena-create-public" style="margin-top:0;">Create public arena</button>
             <button class="mc-add-btn mc-btn-outline" id="mc-arena-create-private" style="margin-top:0;">Create private arena</button>
           </div>
@@ -5384,6 +5387,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
   const arenaLobbyErrorEl = document.getElementById('mc-arena-lobby-error');
   const arenaCreatePublicBtn = document.getElementById('mc-arena-create-public');
   const arenaCreatePrivateBtn = document.getElementById('mc-arena-create-private');
+  const arenaCustomScrambleInput = document.getElementById('mc-arena-custom-scramble-input');
   const arenaCodeInput = document.getElementById('mc-arena-code-input');
   const arenaJoinCodeBtn = document.getElementById('mc-arena-join-code-btn');
   const arenaPublicListEl = document.getElementById('mc-arena-public-list');
@@ -5517,9 +5521,23 @@ body.mc-mobile-app .mc-fs-timer-btn {
     if (watchBtn) { joinArenaById(watchBtn.dataset.watchArena, true); return; }
   });
 
+  const SCRAMBLE_TOKEN_REGEX = /^\d*[UDLRFBMESxyz]w?['2]?$/i;
+  function validateCustomScramble(raw) {
+    const trimmed = raw.trim().replace(/\s+/g, ' ');
+    if (!trimmed) return { valid: true, value: '' };
+    if (trimmed.length > 300) return { valid: false, error: 'Custom scramble is too long.' };
+    const tokens = trimmed.split(' ');
+    if (tokens.length > 60) return { valid: false, error: 'Custom scramble has too many moves.' };
+    const allValid = tokens.every(t => SCRAMBLE_TOKEN_REGEX.test(t));
+    if (!allValid) return { valid: false, error: 'Custom scramble contains an invalid move — use standard notation like R U2 F\' B L2 D.' };
+    return { valid: true, value: tokens.join(' ') };
+  }
+
   async function createArena(isPublic) {
     arenaLobbyErrorEl.textContent = '';
-    const scramble = generateScramble();
+    const customCheck = validateCustomScramble(arenaCustomScrambleInput ? arenaCustomScrambleInput.value : '');
+    if (!customCheck.valid) { arenaLobbyErrorEl.textContent = customCheck.error; return; }
+    const scramble = customCheck.value || generateScramble();
     let attempts = 0;
     while (attempts < 5) {
       const code = generateRoomCode();
@@ -5530,6 +5548,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
         .single();
       if (!error && data) {
         await sb.from('arena_participants').insert({ arena_id: data.id, user_id: currentUser.id });
+        if (arenaCustomScrambleInput) arenaCustomScrambleInput.value = '';
         enterArenaRoom(data.id, false);
         return;
       }
