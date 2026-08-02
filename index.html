@@ -75,6 +75,10 @@
     transition: background 0.15s ease, color 0.15s ease;
   }
 
+  #mc-root.mc-custom-bg-active {
+    background: transparent;
+  }
+
   html.mc-light #mc-root {
     --bg: #f2f1ea;
     --panel: #ffffff;
@@ -6547,16 +6551,19 @@ body.mc-mobile-app .mc-fs-timer-btn {
   const bgScopeAccountRadio = document.getElementById('mc-bg-scope-account');
 
   function applyBackgroundUrl(url) {
+    const rootEl = document.getElementById('mc-root');
     if (url) {
       customBgEl.style.backgroundImage = `url("${url}")`;
       customBgEl.style.display = 'block';
       personalizePreview.style.backgroundImage = `url("${url}")`;
       personalizePreview.textContent = '';
+      if (rootEl) rootEl.classList.add('mc-custom-bg-active');
     } else {
       customBgEl.style.backgroundImage = '';
       customBgEl.style.display = 'none';
       personalizePreview.style.backgroundImage = '';
       personalizePreview.textContent = 'No background set';
+      if (rootEl) rootEl.classList.remove('mc-custom-bg-active');
     }
   }
 
