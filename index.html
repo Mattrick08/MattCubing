@@ -4032,6 +4032,12 @@ body.mc-mobile-app .mc-fs-timer-btn {
     document.querySelectorAll('.mc-scramble-name:not([data-scramble-on])').forEach(el => {
       el.setAttribute('data-scramble-on', '1');
       const original = el.textContent;
+      // Lock the box to its natural size before scrambling starts — the random
+      // notation characters (narrow ASCII) and the real name (which may include
+      // wider glyphs like Chinese characters) don't take up the same width per
+      // slot, so without a fixed width the surrounding row resizes every cycle.
+      el.style.display = 'inline-block';
+      el.style.width = el.getBoundingClientRect().width + 'px';
       const scrambler = new MCTextScramble(el);
       const loop = () => {
         if (!document.body.contains(el)) return;
