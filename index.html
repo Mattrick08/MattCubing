@@ -5680,7 +5680,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
         return `
           <div class="mc-arena-participant-row ${p.disconnected ? 'mc-disconnected' : ''}">
             <span class="mc-arena-ready-dot ${p.ready ? 'mc-ready' : ''}"></span>
-            <span class="mc-arena-participant-name">${nameHtml(p.user_id, profileMap[p.user_id])}${devTagHtml(p.user_id)}</span>
+            <span class="mc-arena-participant-name">${escapeHtml(profileMap[p.user_id] || 'Unknown')}${devTagHtml(p.user_id)}</span>
             <span class="mc-arena-participant-status">${statusText}</span>
           </div>
         `;
