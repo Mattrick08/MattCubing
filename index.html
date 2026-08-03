@@ -783,6 +783,10 @@
     font-family: 'Courier New', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', monospace;
     font-weight: 500;
     letter-spacing: 0.5px;
+    display: inline-block;
+    white-space: nowrap;
+    overflow: hidden;
+    vertical-align: bottom;
   }
   .mc-dev-tag {
     display: inline-flex; align-items: center; gap: 3px; vertical-align: middle;
@@ -4139,10 +4143,16 @@ body.mc-mobile-app .mc-fs-timer-btn {
   }
   // Wraps the creator's own name in a span the scramble-name animator can find;
   // everyone else's name just gets the normal escaped text, unchanged.
+  // The width is reserved in `ch` units right here, from the known display
+  // name length, at render time — not measured later off getBoundingClientRect.
+  // That removes the old race (a ~1s window before the box was locked) and
+  // means surrounding elements (leaderboard rows, chat lines, etc.) never see
+  // the box change size, even on the very first paint.
   function nameHtml(userId, rawName) {
-    const safe = escapeHtml(rawName || 'Unknown');
+    const display = rawName || 'Unknown';
+    const safe = escapeHtml(display);
     if (userId !== CREATOR_USER_ID) return safe;
-    return `<span class="mc-scramble-name">${safe}</span>`;
+    return `<span class="mc-scramble-name" style="width:${display.length}ch;">${safe}</span>`;
   }
 
   // Cube-notation "shuffle then reassemble" effect for the creator's name —
@@ -4189,16 +4199,12 @@ body.mc-mobile-app .mc-fs-timer-btn {
   // re-render from scratch, so this catches them wherever/whenever they show
   // up) and start their loop; each instance checks it's still attached before
   // re-triggering, so it stops cleanly instead of animating a detached node forever.
+  // Width is already reserved (via nameHtml's inline `ch` width + the class's
+  // own overflow:hidden/white-space:nowrap), so there's nothing to measure here.
   setInterval(() => {
     document.querySelectorAll('.mc-scramble-name:not([data-scramble-on])').forEach(el => {
       el.setAttribute('data-scramble-on', '1');
       const original = el.textContent;
-      // Lock the box to its natural size before scrambling starts — the random
-      // notation characters (narrow ASCII) and the real name (which may include
-      // wider glyphs like Chinese characters) don't take up the same width per
-      // slot, so without a fixed width the surrounding row resizes every cycle.
-      el.style.display = 'inline-block';
-      el.style.width = el.getBoundingClientRect().width + 'px';
       const scrambler = new MCTextScramble(el);
       const loop = () => {
         if (!document.body.contains(el)) return;
@@ -6390,12 +6396,29 @@ body.mc-mobile-app .mc-fs-timer-btn {
     arenaChatLogEl.scrollTop = arenaChatLogEl.scrollHeight;
   }
 
+  const ARENA_MESSAGE_MAX_LEN = 200;
+  const ARENA_SEND_COOLDOWN_MS = 1200;
+  let arenaChatSending = false;
+  let arenaLastSentAt = 0;
+
   async function sendArenaChat(message) {
-    const trimmed = (message || '').trim();
-    if (!trimmed || !currentArenaId) return;
-    await sb.from('arena_messages').insert({ arena_id: currentArenaId, user_id: currentUser.id, message: trimmed.slice(0, 200) });
-    arenaChatInputEl.value = '';
-    loadArenaChat();
+    if (arenaChatSending || !currentArenaId) return;
+    // Same protections as the lobby chat: strip control characters before
+    // trimming/length-checking, and throttle sends client-side.
+    const trimmed = (message || '').replace(/[\u0000-\u001F\u007F]/g, '').trim();
+    if (!trimmed) return;
+    const now = Date.now();
+    if (now - arenaLastSentAt < ARENA_SEND_COOLDOWN_MS) return;
+
+    arenaChatSending = true;
+    try {
+      await sb.from('arena_messages').insert({ arena_id: currentArenaId, user_id: currentUser.id, message: trimmed.slice(0, ARENA_MESSAGE_MAX_LEN) });
+      arenaLastSentAt = now;
+      arenaChatInputEl.value = '';
+      await loadArenaChat();
+    } finally {
+      arenaChatSending = false;
+    }
   }
 
   arenaChatSendBtn.addEventListener('click', () => sendArenaChat(arenaChatInputEl.value));
