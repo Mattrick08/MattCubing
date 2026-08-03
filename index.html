@@ -1720,6 +1720,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
         <button class="mc-community-tab" id="mc-tab-leaderboard" data-tab="leaderboard">Leaderboard</button>
         <button class="mc-community-tab" id="mc-tab-challenges" data-tab="challenges">Challenges</button>
         <button class="mc-community-tab" id="mc-tab-arena" data-tab="arena">Arena</button>
+        <button class="mc-community-tab" id="mc-tab-chat" data-tab="chat">Chat</button>
       </div>
 
       <div id="mc-friends-panel" class="mc-community-panel">
@@ -1865,6 +1866,19 @@ body.mc-mobile-app .mc-fs-timer-btn {
               <button class="mc-scramble-refresh" id="mc-arena-chat-send">Send</button>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div id="mc-chat-panel" class="mc-community-panel" style="display:none;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+          <h3 class="mc-community-subheading" style="margin:0;">Lobby</h3>
+          <span style="font-size:12px; color:var(--muted);" id="mc-lobby-online-count"></span>
+        </div>
+        <div class="mc-arena-chat-log" id="mc-lobby-chat-log" style="max-height:340px;"></div>
+        <div class="mc-arena-error" id="mc-lobby-chat-error"></div>
+        <div class="mc-friend-search-row">
+          <input type="text" id="mc-lobby-chat-input" placeholder="Say something…" maxlength="200">
+          <button class="mc-scramble-refresh" id="mc-lobby-chat-send">Send</button>
         </div>
       </div>
     </div>
@@ -4236,23 +4250,29 @@ body.mc-mobile-app .mc-fs-timer-btn {
 
   const tabArenaBtn = document.getElementById('mc-tab-arena');
   const arenaPanel = document.getElementById('mc-arena-panel');
+  const tabChatBtn = document.getElementById('mc-tab-chat');
+  const chatPanel = document.getElementById('mc-chat-panel');
 
   function setActiveTab(tab) {
     if (tab !== 'friends' && typeof closeDm === 'function') closeDm();
+    if (tab !== 'chat' && typeof stopLobbyPolling === 'function') stopLobbyPolling();
     tabFriendsBtn.classList.toggle('active', tab === 'friends');
     tabLeaderboardBtn.classList.toggle('active', tab === 'leaderboard');
     tabChallengesBtn.classList.toggle('active', tab === 'challenges');
     tabArenaBtn.classList.toggle('active', tab === 'arena');
+    tabChatBtn.classList.toggle('active', tab === 'chat');
     friendsPanel.style.display = tab === 'friends' ? 'block' : 'none';
     leaderboardPanel.style.display = tab === 'leaderboard' ? 'block' : 'none';
     challengesPanel.style.display = tab === 'challenges' ? 'block' : 'none';
     arenaPanel.style.display = tab === 'arena' ? 'block' : 'none';
+    chatPanel.style.display = tab === 'chat' ? 'block' : 'none';
   }
 
   tabFriendsBtn.addEventListener('click', () => { setActiveTab('friends'); loadFriendsData(); });
   tabLeaderboardBtn.addEventListener('click', () => { setActiveTab('leaderboard'); loadLeaderboard(); });
   tabChallengesBtn.addEventListener('click', () => { setActiveTab('challenges'); loadChallenge('daily'); loadChallenge('weekly'); });
   tabArenaBtn.addEventListener('click', () => { setActiveTab('arena'); enterArenaLobby(); });
+  tabChatBtn.addEventListener('click', () => { setActiveTab('chat'); loadLobbyChat(); startLobbyPolling(); });
 
   let lastKnownOwnBestMs = undefined;
 
@@ -6387,6 +6407,104 @@ body.mc-mobile-app .mc-fs-timer-btn {
 
   // Poll chat separately at the same cadence as the room refresh
   setInterval(() => { if (currentArenaId) loadArenaChat(); }, 1500);
+
+  // ---------- Global lobby chat ----------
+
+  const lobbyChatLogEl = document.getElementById('mc-lobby-chat-log');
+  const lobbyChatInputEl = document.getElementById('mc-lobby-chat-input');
+  const lobbyChatSendBtn = document.getElementById('mc-lobby-chat-send');
+  const lobbyChatErrorEl = document.getElementById('mc-lobby-chat-error');
+  const lobbyOnlineCountEl = document.getElementById('mc-lobby-online-count');
+
+  const LOBBY_MESSAGE_MAX_LEN = 200;
+  const LOBBY_SEND_COOLDOWN_MS = 1200;
+
+  let lobbyPollHandle = null;
+  let lobbySending = false;
+  let lobbyLastSentAt = 0;
+
+  function startLobbyPolling() {
+    if (lobbyPollHandle) return;
+    lobbyPollHandle = setInterval(loadLobbyChat, 2000);
+  }
+  function stopLobbyPolling() {
+    if (lobbyPollHandle) { clearInterval(lobbyPollHandle); lobbyPollHandle = null; }
+  }
+
+  async function loadLobbyChat() {
+    if (!sb || !currentUser) return;
+    const { data, error } = await sb.from('lobby_messages')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) { console.error('Could not load lobby chat', error); return; }
+    const rows = (data || []).slice().reverse();
+
+    const ids = [...new Set(rows.map(m => m.user_id))];
+    const profileMap = await fetchProfilesByIds(ids);
+
+    // All message text goes through escapeHtml before it ever touches
+    // innerHTML — nothing from the DB is trusted as markup.
+    lobbyChatLogEl.innerHTML = rows.map(m => `
+      <div class="mc-arena-chat-msg"><span class="mc-arena-chat-name">${nameHtml(m.user_id, profileMap[m.user_id])}${devTagHtml(m.user_id)}:</span>${escapeHtml(m.message)}</div>
+    `).join('') || '<div class="mc-arena-chat-msg" style="color:var(--muted);">No messages yet — say hi!</div>';
+    lobbyChatLogEl.scrollTop = lobbyChatLogEl.scrollHeight;
+
+    const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+    const recentSenders = new Set(rows.filter(m => new Date(m.created_at).getTime() >= fiveMinAgo).map(m => m.user_id));
+    lobbyOnlineCountEl.textContent = recentSenders.size
+      ? `${recentSenders.size} active in the last 5 min`
+      : '';
+  }
+
+  async function sendLobbyChat(rawMessage) {
+    if (!currentUser || lobbySending) return;
+
+    // Strip anything that isn't a plain character before length-checking,
+    // so someone can't sneak markup past the visible character count.
+    const trimmed = (rawMessage || '').replace(/[\u0000-\u001F\u007F]/g, '').trim();
+
+    if (!trimmed) return;
+    if (trimmed.length > LOBBY_MESSAGE_MAX_LEN) {
+      lobbyChatErrorEl.textContent = `Keep it under ${LOBBY_MESSAGE_MAX_LEN} characters.`;
+      return;
+    }
+    const now = Date.now();
+    if (now - lobbyLastSentAt < LOBBY_SEND_COOLDOWN_MS) {
+      lobbyChatErrorEl.textContent = 'Sending too fast — slow down a little.';
+      return;
+    }
+
+    lobbyChatErrorEl.textContent = '';
+    lobbySending = true;
+    lobbyChatSendBtn.disabled = true;
+    try {
+      // Sanitized on write (control chars stripped, length capped, blank
+      // rejected) and escaped again on every render — belt and suspenders.
+      // RLS also enforces user_id = auth.uid() and a DB-level length check,
+      // so even a modified client can't forge a sender or overflow it.
+      const { error } = await sb.from('lobby_messages').insert({
+        user_id: currentUser.id,
+        message: trimmed.slice(0, LOBBY_MESSAGE_MAX_LEN)
+      });
+      if (error) throw error;
+      lobbyLastSentAt = now;
+      lobbyChatInputEl.value = '';
+      await loadLobbyChat();
+    } catch (err) {
+      console.error('Could not send lobby message', err);
+      lobbyChatErrorEl.textContent = 'Could not send that message. Try again.';
+    } finally {
+      lobbySending = false;
+      lobbyChatSendBtn.disabled = false;
+    }
+  }
+
+  if (lobbyChatSendBtn) {
+    lobbyChatSendBtn.addEventListener('click', () => sendLobbyChat(lobbyChatInputEl.value));
+    lobbyChatInputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendLobbyChat(lobbyChatInputEl.value); });
+  }
+
 
   // ---------- Cube Solver ----------
 
