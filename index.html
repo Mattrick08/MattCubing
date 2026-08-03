@@ -107,6 +107,11 @@
     justify-content: space-between;
     gap: 14px;
     margin-bottom: 22px;
+    flex-wrap: wrap;
+  }
+  @media (max-width: 480px) {
+    .mc-header-right, .mc-account { width: 100%; }
+    .mc-account { justify-content: space-between; flex-wrap: wrap; }
   }
 
   .mc-header-left { display: flex; align-items: center; gap: 14px; }
@@ -710,13 +715,17 @@
   .mc-achievement-toast-name { font-size: 13.5px; color: var(--yellow-text); font-weight: 700; }
   .mc-achievement-toast-desc { font-size: 11px; color: var(--muted); margin-top: 1px; }
   @keyframes mcToastIn { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-  .mc-community-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .mc-community-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
   .mc-community-tab {
     background: var(--panel-2); border: 1px solid var(--border); color: var(--muted);
     border-radius: 8px; padding: 8px 16px; font-size: 13.5px; font-weight: 600; cursor: pointer;
     font-family: var(--body);
   }
   .mc-community-tab.active { background: var(--blue); color: white; border-color: var(--blue); }
+  @media (max-width: 480px) {
+    .mc-community-tabs { flex-direction: column; align-items: stretch; }
+    .mc-community-tab { width: 100%; text-align: left; }
+  }
   .mc-community-subheading {
     font-family: var(--display); font-size: 12.5px; font-weight: 700; color: var(--muted);
     text-transform: uppercase; letter-spacing: 0.05em; margin: 18px 0 8px;
@@ -1031,7 +1040,7 @@
   }
   .mc-icon-btn:hover { color: var(--blue); background: rgba(47,107,255,0.12); }
 
-  .mc-header-right { display: flex; align-items: center; gap: 10px; }
+  .mc-header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .mc-theme-toggle {
     flex-shrink: 0;
     width: 34px;
