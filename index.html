@@ -4144,15 +4144,43 @@ body.mc-mobile-app .mc-fs-timer-btn {
   // Wraps the creator's own name in a span the scramble-name animator can find;
   // everyone else's name just gets the normal escaped text, unchanged.
   // The width is reserved in `ch` units right here, from the known display
-  // name length, at render time — not measured later off getBoundingClientRect.
+  // name, at render time — not measured later off getBoundingClientRect.
   // That removes the old race (a ~1s window before the box was locked) and
   // means surrounding elements (leaderboard rows, chat lines, etc.) never see
   // the box change size, even on the very first paint.
+  //
+  // 1ch is defined by the "0" glyph of the first font in the stack (Courier
+  // New), which is narrow. CJK/fullwidth characters don't exist in Courier
+  // New, so they render from a fallback font (PingFang SC etc.) at roughly
+  // double that width — counting them as 1ch each made the box too narrow
+  // and overflow:hidden clipped the name right where the wide characters
+  // started. This counts wide characters as 2 units so the reserved width
+  // actually matches what gets rendered.
+  function displayWidthCh(str) {
+    let width = 0;
+    for (const ch of str) {
+      const code = ch.codePointAt(0);
+      const isWide = (
+        (code >= 0x1100 && code <= 0x115F) ||   // Hangul Jamo
+        (code >= 0x2E80 && code <= 0x33FF) ||   // CJK radicals, Kangxi, Hiragana, Katakana, CJK compat
+        (code >= 0x3400 && code <= 0x4DBF) ||   // CJK Ext A
+        (code >= 0x4E00 && code <= 0x9FFF) ||   // CJK Unified Ideographs
+        (code >= 0xA000 && code <= 0xA4CF) ||   // Yi
+        (code >= 0xAC00 && code <= 0xD7A3) ||   // Hangul Syllables
+        (code >= 0xF900 && code <= 0xFAFF) ||   // CJK Compat Ideographs
+        (code >= 0xFF00 && code <= 0xFF60) ||   // Fullwidth forms
+        (code >= 0xFFE0 && code <= 0xFFE6) ||
+        (code >= 0x20000 && code <= 0x3FFFD)    // CJK Ext B and beyond
+      );
+      width += isWide ? 2 : 1;
+    }
+    return width;
+  }
   function nameHtml(userId, rawName) {
     const display = rawName || 'Unknown';
     const safe = escapeHtml(display);
     if (userId !== CREATOR_USER_ID) return safe;
-    return `<span class="mc-scramble-name" style="width:${display.length}ch;">${safe}</span>`;
+    return `<span class="mc-scramble-name" style="width:${displayWidthCh(display)}ch;">${safe}</span>`;
   }
 
   // Cube-notation "shuffle then reassemble" effect for the creator's name —
