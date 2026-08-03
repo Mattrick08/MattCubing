@@ -725,6 +725,36 @@
     border-radius: 999px; padding: 5px 10px; font-size: 11.5px; font-weight: 600; cursor: pointer; z-index: 2;
   }
   .mc-profile-bg-remove-btn:hover { border-color: var(--red); color: var(--red); }
+
+  .mc-h2h-modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    max-width: 480px; width: 100%; position: relative; padding: 20px 20px 22px;
+  }
+  .mc-h2h-people { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; margin: 6px 0 18px; }
+  .mc-h2h-person { text-align: center; }
+  .mc-h2h-avatar {
+    width: 46px; height: 46px; border-radius: 50%; background: var(--panel-2); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; font-weight: 800; font-family: var(--display);
+    margin: 0 auto 6px; font-size: 15px;
+  }
+  .mc-h2h-name { font-size: 13.5px; font-weight: 700; }
+  .mc-h2h-vs { color: var(--muted); font-size: 12px; }
+  .mc-h2h-card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+  .mc-h2h-card-label { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
+  .mc-h2h-bar { height: 8px; border-radius: 999px; background: var(--border); overflow: hidden; display: flex; }
+  .mc-h2h-bar-me { background: var(--blue); }
+  .mc-h2h-bar-them { background: var(--red); }
+  .mc-h2h-bar-labels { display: flex; justify-content: space-between; margin-top: 7px; font-size: 12.5px; }
+  .mc-h2h-row {
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 9px 0;
+    border-bottom: 1px solid var(--border); font-size: 14px;
+  }
+  .mc-h2h-row:last-child { border-bottom: none; }
+  .mc-h2h-row-label { text-align: center; font-size: 11.5px; color: var(--muted); }
+  .mc-h2h-row-me { text-align: left; }
+  .mc-h2h-row-them { text-align: right; }
+  .mc-h2h-row.mc-h2h-win-me .mc-h2h-row-me,
+  .mc-h2h-row.mc-h2h-win-them .mc-h2h-row-them { color: var(--green); font-weight: 700; }
   .mc-profile-body { padding: 0 18px 18px; }
   .mc-profile-name-row {
     display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
@@ -1978,6 +2008,13 @@ body.mc-mobile-app .mc-fs-timer-btn {
         <div class="mc-profile-subheading">Recent arena races</div>
         <div id="mc-profile-arena-history"></div>
       </div>
+    </div>
+  </div>
+
+  <div class="mc-profile-overlay" id="mc-h2h-overlay">
+    <div class="mc-h2h-modal">
+      <button class="mc-profile-close" id="mc-h2h-close-btn">✕</button>
+      <div id="mc-h2h-body">Loading…</div>
     </div>
   </div>
 </div>
@@ -4358,7 +4395,8 @@ body.mc-mobile-app .mc-fs-timer-btn {
         <button class="mc-person-btn" data-profile-message="${userId}">Message</button>`;
     } else if (rel.status === 'accepted') {
       profileActionsEl.innerHTML = `<span style="font-size:12px; color:var(--green); align-self:center;">Already friends</span>
-        <button class="mc-person-btn" data-profile-message="${userId}">Message</button>`;
+        <button class="mc-person-btn" data-profile-message="${userId}">Message</button>
+        <button class="mc-person-btn" data-profile-h2h="${userId}">Compare</button>`;
     } else {
       profileActionsEl.innerHTML = `<span style="font-size:12px; color:var(--muted); align-self:center;">Request pending</span>
         <button class="mc-person-btn" data-profile-message="${userId}">Message</button>`;
@@ -4476,7 +4514,118 @@ body.mc-mobile-app .mc-fs-timer-btn {
       openDmWith(targetId, targetName);
       return;
     }
+    const h2hBtn = e.target.closest('[data-profile-h2h]');
+    if (h2hBtn) {
+      const targetId = h2hBtn.dataset.profileH2h;
+      closeProfileModal();
+      openHeadToHead(targetId);
+      return;
+    }
   });
+
+  const h2hOverlayEl = document.getElementById('mc-h2h-overlay');
+  const h2hCloseBtn = document.getElementById('mc-h2h-close-btn');
+  const h2hBodyEl = document.getElementById('mc-h2h-body');
+
+  function closeH2H() { h2hOverlayEl.classList.remove('open'); }
+  h2hCloseBtn.addEventListener('click', closeH2H);
+  h2hOverlayEl.addEventListener('click', (e) => { if (e.target === h2hOverlayEl) closeH2H(); });
+
+  function initialsFor(name) {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  async function computeArenaRecord(userIdA, userIdB) {
+    const { data: mine } = await sb.from('arena_participants')
+      .select('arena_id, finished_ms, dnf, is_spectator')
+      .eq('user_id', userIdA);
+    const myMap = {};
+    (mine || []).forEach(r => { if (!r.is_spectator && !r.dnf && r.finished_ms != null) myMap[r.arena_id] = r.finished_ms; });
+    const myArenaIds = Object.keys(myMap);
+    if (!myArenaIds.length) return { winsA: 0, winsB: 0, races: 0 };
+
+    const { data: theirs } = await sb.from('arena_participants')
+      .select('arena_id, finished_ms, dnf, is_spectator')
+      .eq('user_id', userIdB)
+      .in('arena_id', myArenaIds);
+
+    let winsA = 0, winsB = 0, races = 0;
+    (theirs || []).forEach(r => {
+      if (r.is_spectator || r.dnf || r.finished_ms == null) return;
+      const myMs = myMap[r.arena_id];
+      if (myMs == null) return;
+      races++;
+      if (myMs < r.finished_ms) winsA++;
+      else if (r.finished_ms < myMs) winsB++;
+    });
+    return { winsA, winsB, races };
+  }
+
+  async function openHeadToHead(friendId) {
+    if (!sb || !currentUser || !friendId || friendId === currentUser.id) return;
+    h2hOverlayEl.classList.add('open');
+    h2hBodyEl.innerHTML = 'Loading…';
+
+    const [{ data: meProfile }, { data: themProfile }, { data: meStats }, { data: themStats }, record] = await Promise.all([
+      sb.from('profiles').select('display_name').eq('id', currentUser.id).maybeSingle(),
+      sb.from('profiles').select('display_name').eq('id', friendId).maybeSingle(),
+      sb.from('user_stats').select('*').eq('user_id', currentUser.id).maybeSingle(),
+      sb.from('user_stats').select('*').eq('user_id', friendId).maybeSingle(),
+      computeArenaRecord(currentUser.id, friendId)
+    ]);
+
+    const meName = meProfile ? meProfile.display_name : 'You';
+    const themName = themProfile ? themProfile.display_name : 'Friend';
+
+    const totalRaces = record.races;
+    const pctMe = totalRaces ? Math.round((record.winsA / totalRaces) * 100) : 50;
+    const pctThem = 100 - pctMe;
+
+    const cmp = (a, b) => (a != null && b != null) ? a < b : null;
+    const rows = [
+      ['Best', meStats ? formatTime(meStats.best_ms) : '-', themStats ? formatTime(themStats.best_ms) : '-', cmp(meStats && meStats.best_ms, themStats && themStats.best_ms)],
+      ['Average', meStats ? formatTime(meStats.avg_ms) : '-', themStats ? formatTime(themStats.avg_ms) : '-', cmp(meStats && meStats.avg_ms, themStats && themStats.avg_ms)],
+      ['Ao5', meStats ? formatTime(meStats.ao5_ms) : '-', themStats ? formatTime(themStats.ao5_ms) : '-', cmp(meStats && meStats.ao5_ms, themStats && themStats.ao5_ms)],
+      ['Ao12', meStats ? formatTime(meStats.ao12_ms) : '-', themStats ? formatTime(themStats.ao12_ms) : '-', cmp(meStats && meStats.ao12_ms, themStats && themStats.ao12_ms)]
+    ];
+
+    h2hBodyEl.innerHTML = `
+      <div class="mc-h2h-people">
+        <div class="mc-h2h-person">
+          <div class="mc-h2h-avatar">${escapeHtml(initialsFor(meName))}</div>
+          <div class="mc-h2h-name">${escapeHtml(meName)}</div>
+        </div>
+        <div class="mc-h2h-vs">vs</div>
+        <div class="mc-h2h-person">
+          <div class="mc-h2h-avatar">${escapeHtml(initialsFor(themName))}</div>
+          <div class="mc-h2h-name">${escapeHtml(themName)}</div>
+        </div>
+      </div>
+      <div class="mc-h2h-card">
+        <div class="mc-h2h-card-label">Arena record${totalRaces ? '' : ' — no shared races yet'}</div>
+        <div class="mc-h2h-bar">
+          <div class="mc-h2h-bar-me" style="width:${pctMe}%;"></div>
+          <div class="mc-h2h-bar-them" style="width:${pctThem}%;"></div>
+        </div>
+        <div class="mc-h2h-bar-labels">
+          <span style="color:var(--blue);">${record.winsA} win${record.winsA === 1 ? '' : 's'}</span>
+          <span style="color:var(--red);">${record.winsB} win${record.winsB === 1 ? '' : 's'}</span>
+        </div>
+      </div>
+      <div class="mc-h2h-card">
+        ${rows.map(([label, meVal, themVal, meWins]) => `
+          <div class="mc-h2h-row ${meWins === true ? 'mc-h2h-win-me' : meWins === false ? 'mc-h2h-win-them' : ''}">
+            <div class="mc-h2h-row-me">${meVal}</div>
+            <div class="mc-h2h-row-label">${label}</div>
+            <div class="mc-h2h-row-them">${themVal}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
 
   async function searchFriends() {
     const query = friendSearchInput.value.trim();
