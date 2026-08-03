@@ -3274,6 +3274,11 @@ body.mc-mobile-app .mc-fs-timer-btn {
     if (error) { console.error('Could not delete time', error); return; }
     await fetchSolves();
     render();
+    // Explicitly (and synchronously) re-check achievements against the updated
+    // solve list, so a badge earned off a fluke time (e.g. a 0.03s misclick) that
+    // no longer holds up gets revoked right away instead of waiting on render()'s
+    // fire-and-forget check.
+    await checkAndAwardAchievements(computeStats());
   }
 
   async function updateSolve(id, fields) {
@@ -3282,6 +3287,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
     if (error) { console.error('Could not update time', error); return; }
     await fetchSolves();
     render();
+    await checkAndAwardAchievements(computeStats());
   }
 
   // ---------- Stats / effective time ----------
