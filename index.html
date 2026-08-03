@@ -5509,6 +5509,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
         <div style="display:flex; gap:6px; margin-left:auto;">
           <button class="mc-scramble-refresh" data-watch-arena="${a.id}">Watch</button>
           <button class="mc-scramble-refresh" data-join-arena="${a.id}">Join</button>
+          ${a.created_by === currentUser.id ? `<button class="mc-scramble-refresh" style="color:var(--red); border-color:var(--red);" data-delete-arena="${a.id}">Delete</button>` : ''}
         </div>
       </div>
     `).join('');
@@ -5519,7 +5520,16 @@ body.mc-mobile-app .mc-fs-timer-btn {
     if (joinBtn) { joinArenaById(joinBtn.dataset.joinArena, false); return; }
     const watchBtn = e.target.closest('[data-watch-arena]');
     if (watchBtn) { joinArenaById(watchBtn.dataset.watchArena, true); return; }
+    const deleteBtn = e.target.closest('[data-delete-arena]');
+    if (deleteBtn) { deleteArena(deleteBtn.dataset.deleteArena); return; }
   });
+
+  async function deleteArena(arenaId) {
+    if (!confirm('Delete this arena room? This cannot be undone.')) return;
+    const { error } = await sb.from('arenas').delete().eq('id', arenaId);
+    if (error) { arenaLobbyErrorEl.textContent = 'Could not delete room — try again.'; console.error(error); return; }
+    loadPublicArenas();
+  }
 
   const SCRAMBLE_TOKEN_REGEX = /^\d*[UDLRFBMESxyz]w?['2]?$/i;
   function validateCustomScramble(raw) {
