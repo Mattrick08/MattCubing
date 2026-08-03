@@ -684,6 +684,48 @@
   }
   .mc-badge-pin:hover { border-color: var(--blue); color: var(--blue); }
   .mc-badge-pin.mc-pinned { background: var(--blue); border-color: var(--blue); color: #fff; }
+
+  /* Public profile modal */
+  .mc-profile-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000;
+    align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto;
+  }
+  .mc-profile-overlay.open { display: flex; }
+  .mc-profile-modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    max-width: 460px; width: 100%; position: relative; overflow: hidden;
+  }
+  .mc-profile-close {
+    position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2);
+    color: #fff; border-radius: 8px; width: 30px; height: 30px; cursor: pointer; font-size: 15px; line-height: 1; z-index: 2;
+  }
+  .mc-profile-close:hover { border-color: var(--red); color: var(--red); }
+  .mc-profile-banner {
+    width: 100%; height: 100px; background-size: cover; background-position: center; background-color: var(--panel-2);
+  }
+  .mc-profile-body { padding: 0 18px 18px; }
+  .mc-profile-name-row {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    font-family: var(--display); font-size: 19px; font-weight: 800; margin-top: -20px; padding-top: 8px;
+  }
+  .mc-profile-member-since { color: var(--muted); font-size: 12px; margin: 3px 0 14px; }
+  .mc-profile-stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+  .mc-profile-stat { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px; text-align: center; }
+  .mc-profile-stat-value { font-family: var(--mono); font-weight: 700; font-size: 14px; }
+  .mc-profile-stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+  .mc-profile-subheading {
+    font-family: var(--display); font-size: 12px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 8px;
+  }
+  .mc-profile-badges-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; }
+  .mc-profile-badge {
+    display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 4px; font-size: 9.5px; text-align: center; color: var(--muted);
+  }
+  .mc-profile-badge .mc-badge-icon { font-size: 20px; margin-bottom: 2px; }
+  .mc-profile-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .mc-clickable-avatar { cursor: pointer; }
+  .mc-clickable-avatar:hover { text-decoration: underline; }
   .mc-flair { font-size: 12px; margin-left: 4px; white-space: nowrap; }
   .mc-scramble-name {
     font-family: 'Courier New', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', monospace;
@@ -1894,6 +1936,23 @@ body.mc-mobile-app .mc-fs-timer-btn {
 </div>
 
 <div id="mc-achievement-toast-wrap" style="position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:8px; pointer-events:none; max-width:280px;"></div>
+
+<div class="mc-profile-overlay" id="mc-profile-overlay">
+  <div class="mc-profile-modal">
+    <button class="mc-profile-close" id="mc-profile-close-btn">✕</button>
+    <div class="mc-profile-banner" id="mc-profile-banner"></div>
+    <div class="mc-profile-body">
+      <div class="mc-profile-name-row" id="mc-profile-name-row"></div>
+      <div class="mc-profile-member-since" id="mc-profile-member-since"></div>
+      <div class="mc-profile-stats-grid" id="mc-profile-stats-grid"></div>
+      <div class="mc-profile-actions" id="mc-profile-actions"></div>
+      <div class="mc-profile-subheading">Badges <span id="mc-profile-badge-count"></span></div>
+      <div class="mc-profile-badges-grid" id="mc-profile-badges-grid"></div>
+      <div class="mc-profile-subheading">Recent arena races</div>
+      <div id="mc-profile-arena-history"></div>
+    </div>
+  </div>
+</div>
 
 <script>
 (function() {
@@ -4182,6 +4241,146 @@ body.mc-mobile-app .mc-fs-timer-btn {
     return `Best ${formatTime(stat.best_ms)} · Avg ${formatTime(stat.avg_ms)} · Ao5 ${formatTime(stat.ao5_ms)} · Ao12 ${formatTime(stat.ao12_ms)} · Today ${formatTime(stat.today_avg_ms)} · Week ${formatTime(stat.week_avg_ms)}`;
   }
 
+  // ---------- Public profile modal ----------
+
+  const profileOverlayEl = document.getElementById('mc-profile-overlay');
+  const profileCloseBtn = document.getElementById('mc-profile-close-btn');
+  const profileBannerEl = document.getElementById('mc-profile-banner');
+  const profileNameRowEl = document.getElementById('mc-profile-name-row');
+  const profileMemberSinceEl = document.getElementById('mc-profile-member-since');
+  const profileStatsGridEl = document.getElementById('mc-profile-stats-grid');
+  const profileActionsEl = document.getElementById('mc-profile-actions');
+  const profileBadgeCountEl = document.getElementById('mc-profile-badge-count');
+  const profileBadgesGridEl = document.getElementById('mc-profile-badges-grid');
+  const profileArenaHistoryEl = document.getElementById('mc-profile-arena-history');
+
+  function closeProfileModal() {
+    profileOverlayEl.classList.remove('open');
+  }
+  profileCloseBtn.addEventListener('click', closeProfileModal);
+  profileOverlayEl.addEventListener('click', (e) => { if (e.target === profileOverlayEl) closeProfileModal(); });
+
+  async function openProfileModal(userId) {
+    if (!sb || !currentUser || !userId) return;
+    profileOverlayEl.classList.add('open');
+    profileNameRowEl.textContent = 'Loading…';
+    profileMemberSinceEl.textContent = '';
+    profileStatsGridEl.innerHTML = '';
+    profileActionsEl.innerHTML = '';
+    profileBadgeCountEl.textContent = '';
+    profileBadgesGridEl.innerHTML = '';
+    profileArenaHistoryEl.innerHTML = '';
+    profileBannerEl.style.backgroundImage = '';
+
+    const [{ data: profile }, { data: stat }, { data: earnedRows }, { data: rel }] = await Promise.all([
+      sb.from('profiles').select('*').eq('id', userId).maybeSingle(),
+      sb.from('user_stats').select('*').eq('user_id', userId).maybeSingle(),
+      sb.from('user_achievements').select('code').eq('user_id', userId),
+      sb.from('friendships').select('*')
+        .or(`and(requester_id.eq.${currentUser.id},addressee_id.eq.${userId}),and(requester_id.eq.${userId},addressee_id.eq.${currentUser.id})`)
+        .maybeSingle()
+    ]);
+
+    if (!profile) { profileNameRowEl.textContent = 'Profile not found.'; return; }
+
+    if (profile.background_url) profileBannerEl.style.backgroundImage = `url("${profile.background_url}")`;
+    profileNameRowEl.innerHTML = `${nameHtml(userId, profile.display_name)}${devTagHtml(userId)}`;
+    const memberSince = profile.created_at ? new Date(profile.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long' }) : null;
+    profileMemberSinceEl.textContent = memberSince ? `Member since ${memberSince}` : '';
+
+    const earnedCodes = (earnedRows || []).map(r => r.code);
+    const statCells = [
+      ['Best', stat ? formatTime(stat.best_ms) : '-'],
+      ['Ao5', stat ? formatTime(stat.ao5_ms) : '-'],
+      ['Ao12', stat ? formatTime(stat.ao12_ms) : '-'],
+      ['Solves', stat ? (stat.solve_count || 0) : 0],
+      ['Arena wins', stat ? (stat.arena_wins || 0) : 0],
+      ['Badges', earnedCodes.length]
+    ];
+    profileStatsGridEl.innerHTML = statCells.map(([label, value]) => `
+      <div class="mc-profile-stat">
+        <div class="mc-profile-stat-value">${value}</div>
+        <div class="mc-profile-stat-label">${label}</div>
+      </div>
+    `).join('');
+
+    if (userId === currentUser.id) {
+      profileActionsEl.innerHTML = '';
+    } else if (!rel) {
+      profileActionsEl.innerHTML = `<button class="mc-person-btn add" data-profile-add-friend="${userId}">Add friend</button>
+        <button class="mc-person-btn" data-profile-message="${userId}">Message</button>`;
+    } else if (rel.status === 'accepted') {
+      profileActionsEl.innerHTML = `<span style="font-size:12px; color:var(--green); align-self:center;">Already friends</span>
+        <button class="mc-person-btn" data-profile-message="${userId}">Message</button>`;
+    } else {
+      profileActionsEl.innerHTML = `<span style="font-size:12px; color:var(--muted); align-self:center;">Request pending</span>
+        <button class="mc-person-btn" data-profile-message="${userId}">Message</button>`;
+    }
+
+    profileBadgeCountEl.textContent = `${earnedCodes.length} / ${ACHIEVEMENTS.length} unlocked`;
+    const earnedAchievements = ACHIEVEMENTS.filter(a => earnedCodes.includes(a.code));
+    profileBadgesGridEl.innerHTML = earnedAchievements.length
+      ? earnedAchievements.map(a => `
+          <div class="mc-badge-card mc-profile-badge mc-tier-${a.tier}" title="${escapeHtml(a.desc)}">
+            <div class="mc-badge-icon">${a.icon}</div>
+            <div>${escapeHtml(a.name)}</div>
+          </div>
+        `).join('')
+      : '<div class="mc-empty">No badges unlocked yet.</div>';
+
+    const { data: recentFinished } = await sb
+      .from('arena_participants')
+      .select('*')
+      .eq('user_id', userId)
+      .not('finished_ms', 'is', null)
+      .order('finished_at', { ascending: false })
+      .limit(5);
+
+    if (!recentFinished || recentFinished.length === 0) {
+      profileArenaHistoryEl.innerHTML = '<div class="mc-empty">No arena races yet.</div>';
+    } else {
+      const arenaIds = [...new Set(recentFinished.map(m => m.arena_id))];
+      const { data: allParticipants } = await sb.from('arena_participants').select('*').in('arena_id', arenaIds).not('finished_ms', 'is', null);
+      const byArena = {};
+      (allParticipants || []).forEach(p => { (byArena[p.arena_id] = byArena[p.arena_id] || []).push(p); });
+      profileArenaHistoryEl.innerHTML = recentFinished.map(m => {
+        const field = (byArena[m.arena_id] || []).slice().sort(arenaRankSort);
+        const rank = field.findIndex(p => p.user_id === userId) + 1;
+        const won = rank === 1 && field.length > 1 && !m.dnf;
+        const dateStr = new Date(m.finished_at).toLocaleDateString();
+        return `
+          <div class="mc-arena-public-row" style="flex-wrap:wrap;">
+            <span style="font-family:var(--mono); font-weight:700; ${m.dnf ? 'color:var(--red);' : ''}">${m.dnf ? 'DNF' : formatTime(m.finished_ms)}</span>
+            <span style="color:${won ? 'var(--yellow-text)' : 'var(--muted)'}; font-size:12px;">${field.length > 1 ? (won ? '🏆 Won' : `#${rank} of ${field.length}`) : 'Solo run'}</span>
+            <span style="color:var(--muted); font-size:11.5px;">${dateStr}</span>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  profileActionsEl.addEventListener('click', async (e) => {
+    const addBtn = e.target.closest('[data-profile-add-friend]');
+    if (addBtn) {
+      const targetId = addBtn.dataset.profileAddFriend;
+      try {
+        const { error } = await sb.from('friendships').insert({ requester_id: currentUser.id, addressee_id: targetId, status: 'pending' });
+        if (error) throw error;
+        openProfileModal(targetId);
+      } catch (err) { console.error('Could not send friend request', err); }
+      return;
+    }
+    const msgBtn = e.target.closest('[data-profile-message]');
+    if (msgBtn) {
+      const targetId = msgBtn.dataset.profileMessage;
+      const targetName = profileNameRowEl.textContent;
+      closeProfileModal();
+      setActiveTab('friends');
+      openDmWith(targetId, targetName);
+      return;
+    }
+  });
+
   async function searchFriends() {
     const query = friendSearchInput.value.trim();
     friendSearchResults.innerHTML = '';
@@ -4215,7 +4414,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
       }
       html += `
         <div class="mc-person-row">
-          <span class="mc-person-name">${nameHtml(p.id, p.display_name)}${devTagHtml(p.id)}</span>
+          <span class="mc-person-name"><span class="mc-clickable-avatar" data-view-profile="${p.id}" title="View profile">👤</span> ${nameHtml(p.id, p.display_name)}${devTagHtml(p.id)}</span>
           <div class="mc-person-actions">${actionHtml}</div>
         </div>
       `;
@@ -4227,6 +4426,8 @@ body.mc-mobile-app .mc-fs-timer-btn {
   friendSearchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') searchFriends(); });
 
   friendSearchResults.addEventListener('click', async (e) => {
+    const avatarBtn = e.target.closest('[data-view-profile]');
+    if (avatarBtn) { openProfileModal(avatarBtn.dataset.viewProfile); return; }
     const btn = e.target.closest('[data-add-friend]');
     if (!btn) return;
     const targetId = btn.dataset.addFriend;
@@ -4265,7 +4466,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
       friendRequestsSection.style.display = 'block';
       friendRequestsList.innerHTML = incoming.map(f => `
         <div class="mc-person-row">
-          <span class="mc-person-name">${nameHtml(f.requester_id, profileMap[f.requester_id])}${devTagHtml(f.requester_id)}</span>
+          <span class="mc-person-name"><span class="mc-clickable-avatar" data-view-profile="${f.requester_id}" title="View profile">👤</span> ${nameHtml(f.requester_id, profileMap[f.requester_id])}${devTagHtml(f.requester_id)}</span>
           <div class="mc-person-actions">
             <button class="mc-person-btn accept" data-accept="${f.id}">Accept</button>
             <button class="mc-person-btn decline" data-decline="${f.id}">Decline</button>
@@ -4310,7 +4511,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
         return `
           <div class="mc-person-row">
             <div>
-              <div class="mc-person-name">${nameHtml(otherId, profileMap[otherId])}${devTagHtml(otherId)}${flairHtml(flairMap[otherId])}</div>
+              <div class="mc-person-name"><span class="mc-clickable-avatar" data-view-profile="${otherId}" title="View profile">👤</span> ${nameHtml(otherId, profileMap[otherId])}${devTagHtml(otherId)}${flairHtml(flairMap[otherId])}</div>
               <div class="mc-person-stats">${personStatsLine(stat)}</div>
             </div>
             <div class="mc-person-actions">
@@ -4327,6 +4528,8 @@ body.mc-mobile-app .mc-fs-timer-btn {
   }
 
   friendRequestsList.addEventListener('click', async (e) => {
+    const avatarBtn = e.target.closest('[data-view-profile]');
+    if (avatarBtn) { openProfileModal(avatarBtn.dataset.viewProfile); return; }
     const acceptBtn = e.target.closest('[data-accept]');
     if (acceptBtn) {
       await sb.from('friendships').update({ status: 'accepted' }).eq('id', acceptBtn.dataset.accept);
@@ -4344,6 +4547,8 @@ body.mc-mobile-app .mc-fs-timer-btn {
   });
 
   friendsListEl.addEventListener('click', async (e) => {
+    const avatarBtn = e.target.closest('[data-view-profile]');
+    if (avatarBtn) { openProfileModal(avatarBtn.dataset.viewProfile); return; }
     const removeBtn = e.target.closest('[data-remove-friend]');
     if (removeBtn) {
       await sb.from('friendships').delete().eq('id', removeBtn.dataset.removeFriend);
@@ -4353,7 +4558,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
     const msgBtn = e.target.closest('[data-message-friend]');
     if (msgBtn) {
       const friendId = msgBtn.dataset.messageFriend;
-      const friendName = msgBtn.closest('.mc-person-row').querySelector('.mc-person-name').textContent;
+      const friendName = msgBtn.closest('.mc-person-row').querySelector('.mc-person-name').textContent.replace(/^👤\s*/, '');
       openDmWith(friendId, friendName);
       return;
     }
@@ -4589,7 +4794,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
         <div class="mc-leaderboard-row-wrap">
           <div class="mc-leaderboard-row ${row.user_id === currentUser.id ? 'mc-is-me' : ''}">
             <span class="mc-leaderboard-rank">#${i + 1}</span>
-            <span class="${nameClass}" ${nameAttr}>${nameHtml(row.user_id, leaderboardProfileMap[row.user_id])}${devTagHtml(row.user_id)}${flairHtml(leaderboardFlairMap[row.user_id])}</span>
+            <span class="${nameClass}" ${nameAttr}><span class="mc-clickable-avatar" data-view-profile="${row.user_id}" title="View profile">👤</span> ${nameHtml(row.user_id, leaderboardProfileMap[row.user_id])}${devTagHtml(row.user_id)}${flairHtml(leaderboardFlairMap[row.user_id])}</span>
             <span class="mc-leaderboard-value">${valueDisplay}</span>
           </div>
           ${scramblePanel}
@@ -4599,6 +4804,8 @@ body.mc-mobile-app .mc-fs-timer-btn {
   }
 
   leaderboardListEl.addEventListener('click', (e) => {
+    const avatarBtn = e.target.closest('[data-view-profile]');
+    if (avatarBtn) { openProfileModal(avatarBtn.dataset.viewProfile); return; }
     const nameEl = e.target.closest('[data-toggle-user]');
     if (nameEl) {
       const uid = nameEl.dataset.toggleUser;
@@ -5513,7 +5720,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
 
     arenaPublicListEl.innerHTML = data.map(a => `
       <div class="mc-arena-public-row">
-        <span>Room by ${nameHtml(a.created_by, profileMap[a.created_by])}${devTagHtml(a.created_by)}</span>
+        <span>Room by <span class="mc-clickable-avatar" data-view-profile="${a.created_by}" title="View profile">👤</span> ${nameHtml(a.created_by, profileMap[a.created_by])}${devTagHtml(a.created_by)}</span>
         <span style="color:var(--muted); font-size:11.5px;">${countByArena[a.id] || 0} joined</span>
         <div style="display:flex; gap:6px; margin-left:auto;">
           <button class="mc-scramble-refresh" data-watch-arena="${a.id}">Watch</button>
@@ -5525,6 +5732,8 @@ body.mc-mobile-app .mc-fs-timer-btn {
   }
 
   arenaPublicListEl.addEventListener('click', (e) => {
+    const avatarBtn = e.target.closest('[data-view-profile]');
+    if (avatarBtn) { openProfileModal(avatarBtn.dataset.viewProfile); return; }
     const joinBtn = e.target.closest('[data-join-arena]');
     if (joinBtn) { joinArenaById(joinBtn.dataset.joinArena, false); return; }
     const watchBtn = e.target.closest('[data-watch-arena]');
