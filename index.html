@@ -1744,6 +1744,11 @@ body.mc-mobile-app .mc-fs-timer-btn {
           <div id="mc-friend-requests-list"></div>
         </div>
 
+        <div id="mc-duel-invites-section" style="display:none;">
+          <h3 class="mc-community-subheading">Duel invites</h3>
+          <div id="mc-duel-invites-list"></div>
+        </div>
+
         <h3 class="mc-community-subheading">Your friends</h3>
         <div id="mc-friends-list"></div>
 
@@ -4279,6 +4284,8 @@ body.mc-mobile-app .mc-fs-timer-btn {
   const friendRequestsSection = document.getElementById('mc-friend-requests-section');
   const friendRequestsList = document.getElementById('mc-friend-requests-list');
   const friendsListEl = document.getElementById('mc-friends-list');
+  const duelInvitesSection = document.getElementById('mc-duel-invites-section');
+  const duelInvitesList = document.getElementById('mc-duel-invites-list');
   const leaderboardMetricSelect = document.getElementById('mc-leaderboard-metric');
   const leaderboardListEl = document.getElementById('mc-leaderboard-list');
 
@@ -4750,7 +4757,17 @@ body.mc-mobile-app .mc-fs-timer-btn {
 
     const incoming = rels.filter(f => f.status === 'pending' && f.addressee_id === currentUser.id);
     const accepted = rels.filter(f => f.status === 'accepted');
-    mcNavBadgeState.friendRequest = incoming.length > 0;
+
+    const { data: incomingDuels, error: duelsErr } = await sb
+      .from('arena_invites')
+      .select('*')
+      .eq('to_user_id', currentUser.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    if (duelsErr) console.error('Could not load duel invites', duelsErr);
+    const pendingDuels = incomingDuels || [];
+
+    mcNavBadgeState.friendRequest = incoming.length > 0 || pendingDuels.length > 0;
     if (typeof updateNavBadges === 'function') updateNavBadges();
 
     const otherIds = [
@@ -4776,6 +4793,23 @@ body.mc-mobile-app .mc-fs-timer-btn {
     } else {
       friendRequestsSection.style.display = 'none';
       friendRequestsList.innerHTML = '';
+    }
+
+    if (pendingDuels.length > 0) {
+      duelInvitesSection.style.display = 'block';
+      const duelProfileMap = await fetchProfilesByIds(pendingDuels.map(d => d.from_user_id));
+      duelInvitesList.innerHTML = pendingDuels.map(d => `
+        <div class="mc-person-row">
+          <span class="mc-person-name">${nameHtml(d.from_user_id, duelProfileMap[d.from_user_id])}${devTagHtml(d.from_user_id)} wants to duel</span>
+          <div class="mc-person-actions">
+            <button class="mc-person-btn accept" data-accept-duel="${d.id}" data-duel-arena="${d.arena_id}">Accept</button>
+            <button class="mc-person-btn decline" data-decline-duel="${d.id}">Decline</button>
+          </div>
+        </div>
+      `).join('');
+    } else {
+      duelInvitesSection.style.display = 'none';
+      duelInvitesList.innerHTML = '';
     }
 
     if (accepted.length > 0) {
@@ -4815,6 +4849,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
               <div class="mc-person-stats">${personStatsLine(stat)}</div>
             </div>
             <div class="mc-person-actions">
+              <button class="mc-person-btn" data-duel-friend="${otherId}">Duel</button>
               <button class="mc-person-btn" data-message-friend="${otherId}">Message</button>
               <button class="mc-person-btn remove" data-remove-friend="${f.id}">Remove</button>
             </div>
@@ -4846,6 +4881,24 @@ body.mc-mobile-app .mc-fs-timer-btn {
     }
   });
 
+  duelInvitesList.addEventListener('click', async (e) => {
+    const acceptBtn = e.target.closest('[data-accept-duel]');
+    if (acceptBtn) {
+      await sb.from('arena_invites').update({ status: 'accepted' }).eq('id', acceptBtn.dataset.acceptDuel);
+      const arenaId = acceptBtn.dataset.duelArena;
+      setActiveTab('arena');
+      await joinArenaById(arenaId, false);
+      loadFriendsData();
+      return;
+    }
+    const declineBtn = e.target.closest('[data-decline-duel]');
+    if (declineBtn) {
+      await sb.from('arena_invites').update({ status: 'declined' }).eq('id', declineBtn.dataset.declineDuel);
+      loadFriendsData();
+      return;
+    }
+  });
+
   friendsListEl.addEventListener('click', async (e) => {
     const avatarBtn = e.target.closest('[data-view-profile]');
     if (avatarBtn) { openProfileModal(avatarBtn.dataset.viewProfile); return; }
@@ -4860,6 +4913,18 @@ body.mc-mobile-app .mc-fs-timer-btn {
       const friendId = msgBtn.dataset.messageFriend;
       const friendName = msgBtn.closest('.mc-person-row').querySelector('.mc-person-name').textContent.replace(/^👤\s*/, '');
       openDmWith(friendId, friendName);
+      return;
+    }
+    const duelBtn = e.target.closest('[data-duel-friend]');
+    if (duelBtn) {
+      duelBtn.disabled = true;
+      duelBtn.textContent = 'Inviting…';
+      try {
+        await sendDuelInvite(duelBtn.dataset.duelFriend);
+      } finally {
+        duelBtn.disabled = false;
+        duelBtn.textContent = 'Duel';
+      }
       return;
     }
   });
@@ -5022,15 +5087,65 @@ body.mc-mobile-app .mc-fs-timer-btn {
     }
   }
 
+  async function showDuelInviteNotification(fromUserId, fromName) {
+    const title = `${fromName} on MattCubing`;
+    const options = {
+      body: 'Wants to duel you in the Arena.',
+      icon: 'icon-192.png',
+      badge: 'icon-192.png',
+      tag: `mc-duel-${fromUserId}`,
+      data: { type: 'duel', friendId: fromUserId, friendName: fromName }
+    };
+    try {
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.ready;
+        if (reg && reg.showNotification) { await reg.showNotification(title, options); return; }
+      }
+      new Notification(title, options);
+    } catch (e) { console.error('Could not show notification', e); }
+  }
+
+  let lastDuelCheckIso = null;
+
+  async function pollForDuelInvites() {
+    if (!sb || !currentUser) return;
+    const sinceIso = lastDuelCheckIso || new Date().toISOString();
+    const { data, error } = await sb
+      .from('arena_invites')
+      .select('*')
+      .eq('to_user_id', currentUser.id)
+      .eq('status', 'pending')
+      .gt('created_at', sinceIso)
+      .order('created_at', { ascending: true })
+      .limit(50);
+    if (error) { console.error('Could not poll duel invites', error); return; }
+
+    if (data.length > 0) lastDuelCheckIso = data[data.length - 1].created_at;
+    else if (!lastDuelCheckIso) lastDuelCheckIso = sinceIso;
+
+    if (data.length > 0) {
+      mcNavBadgeState.friendRequest = true;
+      if (typeof updateNavBadges === 'function') updateNavBadges();
+    }
+
+    if (!notifSupported || Notification.permission !== 'granted' || !notifPrefEnabled()) return;
+    for (const inv of data) {
+      const name = await nameForUserId(inv.from_user_id);
+      showDuelInviteNotification(inv.from_user_id, name);
+    }
+  }
+
   function startMessageNotificationPoll() {
     lastMessageCheckIso = new Date().toISOString();
+    lastDuelCheckIso = new Date().toISOString();
     if (globalDmPollHandle) clearInterval(globalDmPollHandle);
-    globalDmPollHandle = setInterval(pollForNewMessages, 6000);
+    globalDmPollHandle = setInterval(() => { pollForNewMessages(); pollForDuelInvites(); }, 6000);
   }
 
   function stopMessageNotificationPoll() {
     if (globalDmPollHandle) { clearInterval(globalDmPollHandle); globalDmPollHandle = null; }
     lastMessageCheckIso = null;
+    lastDuelCheckIso = null;
   }
 
   // When a notification is clicked, sw.js focuses/opens the app and posts a
@@ -6087,6 +6202,38 @@ body.mc-mobile-app .mc-fs-timer-btn {
 
   arenaCreatePublicBtn.addEventListener('click', () => createArena(true));
   arenaCreatePrivateBtn.addEventListener('click', () => createArena(false));
+
+  // Direct duel invite: create a private room, record an invite row so the
+  // friend sees an Accept/Decline prompt (and a notification if they have
+  // those on), and put the inviter straight into the room to wait.
+  async function sendDuelInvite(toUserId) {
+    if (!currentUser || !toUserId) return;
+    let attempts = 0;
+    while (attempts < 5) {
+      const code = generateRoomCode();
+      const scramble = generateScramble();
+      const { data, error } = await sb
+        .from('arenas')
+        .insert({ code, is_public: false, scramble, created_by: currentUser.id })
+        .select()
+        .single();
+      if (!error && data) {
+        await sb.from('arena_participants').insert({ arena_id: data.id, user_id: currentUser.id });
+        const { error: inviteErr } = await sb.from('arena_invites').insert({
+          arena_id: data.id, from_user_id: currentUser.id, to_user_id: toUserId
+        });
+        if (inviteErr) {
+          console.error('Could not send duel invite', inviteErr);
+          return;
+        }
+        setActiveTab('arena');
+        enterArenaRoom(data.id, false);
+        return;
+      }
+      attempts++;
+    }
+    console.error('Could not create a duel room right now.');
+  }
 
   async function joinArenaById(arenaId, asSpectator) {
     arenaLobbyErrorEl.textContent = '';
