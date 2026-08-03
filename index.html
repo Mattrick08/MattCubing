@@ -702,7 +702,20 @@
   .mc-profile-close:hover { border-color: var(--red); color: var(--red); }
   .mc-profile-banner {
     width: 100%; height: 100px; background-size: cover; background-position: center; background-color: var(--panel-2);
+    position: relative;
   }
+  .mc-profile-bg-edit-btn {
+    position: absolute; bottom: 8px; right: 8px; display: none; align-items: center; gap: 5px;
+    background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.25); color: #fff;
+    border-radius: 999px; padding: 5px 10px; font-size: 11.5px; font-weight: 600; cursor: pointer; z-index: 2;
+  }
+  .mc-profile-bg-edit-btn:hover { border-color: var(--blue); }
+  .mc-profile-bg-remove-btn {
+    position: absolute; bottom: 8px; right: 108px; display: none; align-items: center;
+    background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.25); color: #fff;
+    border-radius: 999px; padding: 5px 10px; font-size: 11.5px; font-weight: 600; cursor: pointer; z-index: 2;
+  }
+  .mc-profile-bg-remove-btn:hover { border-color: var(--red); color: var(--red); }
   .mc-profile-body { padding: 0 18px 18px; }
   .mc-profile-name-row {
     display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
@@ -1937,7 +1950,11 @@ body.mc-mobile-app .mc-fs-timer-btn {
   <div class="mc-profile-overlay" id="mc-profile-overlay">
     <div class="mc-profile-modal">
       <button class="mc-profile-close" id="mc-profile-close-btn">✕</button>
-      <div class="mc-profile-banner" id="mc-profile-banner"></div>
+      <div class="mc-profile-banner" id="mc-profile-banner">
+        <button type="button" class="mc-profile-bg-remove-btn" id="mc-profile-bg-remove-btn">Remove</button>
+        <button type="button" class="mc-profile-bg-edit-btn" id="mc-profile-bg-edit-btn">🖼️ Background</button>
+      </div>
+      <input type="file" id="mc-profile-bg-input" accept="image/*" style="display:none;">
       <div class="mc-profile-body">
         <div class="mc-profile-name-row" id="mc-profile-name-row"></div>
         <div class="mc-profile-member-since" id="mc-profile-member-since"></div>
@@ -4259,6 +4276,10 @@ body.mc-mobile-app .mc-fs-timer-btn {
   const profileBadgeCountEl = document.getElementById('mc-profile-badge-count');
   const profileBadgesGridEl = document.getElementById('mc-profile-badges-grid');
   const profileArenaHistoryEl = document.getElementById('mc-profile-arena-history');
+  const profileBgEditBtn = document.getElementById('mc-profile-bg-edit-btn');
+  const profileBgRemoveBtn = document.getElementById('mc-profile-bg-remove-btn');
+  const profileBgInput = document.getElementById('mc-profile-bg-input');
+  let profileModalUserId = null;
 
   function closeProfileModal() {
     profileOverlayEl.classList.remove('open');
@@ -4268,6 +4289,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
 
   async function openProfileModal(userId) {
     if (!sb || !currentUser || !userId) return;
+    profileModalUserId = userId;
     profileOverlayEl.classList.add('open');
     profileNameRowEl.textContent = 'Loading…';
     profileMemberSinceEl.textContent = '';
@@ -4277,6 +4299,8 @@ body.mc-mobile-app .mc-fs-timer-btn {
     profileBadgesGridEl.innerHTML = '';
     profileArenaHistoryEl.innerHTML = '';
     profileBannerEl.style.backgroundImage = '';
+    profileBgEditBtn.style.display = userId === currentUser.id ? 'flex' : 'none';
+    profileBgRemoveBtn.style.display = 'none';
 
     const [{ data: profile }, { data: stat }, { data: earnedRows }, { data: rel }] = await Promise.all([
       sb.from('profiles').select('*').eq('id', userId).maybeSingle(),
@@ -4289,7 +4313,10 @@ body.mc-mobile-app .mc-fs-timer-btn {
 
     if (!profile) { profileNameRowEl.textContent = 'Profile not found.'; return; }
 
-    if (profile.background_url) profileBannerEl.style.backgroundImage = `url("${profile.background_url}")`;
+    if (profile.background_url) {
+      profileBannerEl.style.backgroundImage = `url("${profile.background_url}")`;
+      if (userId === currentUser.id) profileBgRemoveBtn.style.display = 'flex';
+    }
     profileNameRowEl.innerHTML = `${nameHtml(userId, profile.display_name)}${devTagHtml(userId)}`;
     const memberSince = profile.created_at ? new Date(profile.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long' }) : null;
     profileMemberSinceEl.textContent = memberSince ? `Member since ${memberSince}` : '';
@@ -4364,6 +4391,56 @@ body.mc-mobile-app .mc-fs-timer-btn {
       }).join('');
     }
   }
+
+  profileBgEditBtn.addEventListener('click', () => {
+    if (!currentUser || profileModalUserId !== currentUser.id) return;
+    profileBgInput.click();
+  });
+
+  profileBgRemoveBtn.addEventListener('click', async () => {
+    if (!currentUser || profileModalUserId !== currentUser.id) return;
+    profileBgRemoveBtn.disabled = true;
+    try {
+      const { error } = await sb.from('profiles').update({ background_url: null }).eq('id', currentUser.id);
+      if (error) throw error;
+      profileBannerEl.style.backgroundImage = '';
+      profileBgRemoveBtn.style.display = 'none';
+    } catch (err) {
+      console.error('Could not remove background image', err);
+      window.alert('Could not remove your background image. Try again.');
+    } finally {
+      profileBgRemoveBtn.disabled = false;
+    }
+  });
+
+  profileBgInput.addEventListener('change', async () => {
+    const file = profileBgInput.files && profileBgInput.files[0];
+    profileBgInput.value = '';
+    if (!file || !currentUser || profileModalUserId !== currentUser.id) return;
+    if (!file.type.startsWith('image/')) { window.alert('Please choose an image file.'); return; }
+    if (file.size > 5 * 1024 * 1024) { window.alert('Please choose an image smaller than 5MB.'); return; }
+    const prevLabel = profileBgEditBtn.textContent;
+    profileBgEditBtn.textContent = 'Uploading…';
+    profileBgEditBtn.disabled = true;
+    try {
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+      const path = `${currentUser.id}/banner.${ext}`;
+      const { error: upErr } = await sb.storage.from('backgrounds').upload(path, file, { upsert: true, cacheControl: '3600' });
+      if (upErr) throw upErr;
+      const { data: pub } = sb.storage.from('backgrounds').getPublicUrl(path);
+      const url = `${pub.publicUrl}?t=${Date.now()}`;
+      const { error: updErr } = await sb.from('profiles').update({ background_url: url }).eq('id', currentUser.id);
+      if (updErr) throw updErr;
+      profileBannerEl.style.backgroundImage = `url("${url}")`;
+      profileBgRemoveBtn.style.display = 'flex';
+    } catch (err) {
+      console.error('Could not update background image', err);
+      window.alert('Could not update your background image. Try again.');
+    } finally {
+      profileBgEditBtn.textContent = prevLabel;
+      profileBgEditBtn.disabled = false;
+    }
+  });
 
   profileActionsEl.addEventListener('click', async (e) => {
     const addBtn = e.target.closest('[data-profile-add-friend]');
