@@ -6241,6 +6241,18 @@ body.mc-mobile-app .mc-fs-timer-btn {
     if (error || !arena) { arenaLobbyErrorEl.textContent = 'Room not found.'; return; }
     if (!asSpectator && arena.status !== 'waiting') { arenaLobbyErrorEl.textContent = 'That race has already started.'; return; }
 
+    // Duel rooms (created via a direct invite) are locked to whoever the
+    // invite named — everyone else is turned away, even with the room code,
+    // even to spectate. Private rooms made the regular way (no invite row
+    // attached) keep working exactly as before: anyone with the code can join.
+    if (arena.created_by !== currentUser.id) {
+      const { data: invites } = await sb.from('arena_invites').select('to_user_id').eq('arena_id', arenaId);
+      if (invites && invites.length > 0 && !invites.some(i => i.to_user_id === currentUser.id)) {
+        arenaLobbyErrorEl.textContent = "This is a private duel — you weren't invited to this room.";
+        return;
+      }
+    }
+
     if (asSpectator) {
       const { data: existingSpec } = await sb.from('arena_participants').select('*').eq('arena_id', arenaId).eq('user_id', currentUser.id).maybeSingle();
       if (!existingSpec) {
