@@ -525,6 +525,7 @@
   .mc-stat.ao5 { border-left-color: var(--orange); }
   .mc-stat.ao12 { border-left-color: var(--white-sq); }
   .mc-stat.consistency { border-left-color: var(--indigo); }
+  .mc-stat.streak { border-left-color: var(--red); }
   .mc-stat-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
   .mc-stat-label-wrap { position: relative; display: inline-flex; align-items: center; gap: 5px; }
@@ -1668,6 +1669,10 @@ body.mc-mobile-app .mc-fs-timer-btn {
               <span class="mc-stat-label">This Week's Avg</span>
               <span class="mc-stat-value" id="mc-stat-week">--:--.---</span>
             </div>
+            <div class="mc-stat streak">
+              <span class="mc-stat-label">Day Streak</span>
+              <span class="mc-stat-value" id="mc-stat-streak">--</span>
+            </div>
           </div>
 
           <div class="mc-entry">
@@ -2160,6 +2165,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
   const historyList = document.getElementById('mc-history-list');
   const statToday = document.getElementById('mc-stat-today');
   const statWeek = document.getElementById('mc-stat-week');
+  const statStreak = document.getElementById('mc-stat-streak');
   const filterNoteInput = document.getElementById('mc-filter-note');
   const filterFromInput = document.getElementById('mc-filter-from');
   const filterToInput = document.getElementById('mc-filter-to');
@@ -3505,6 +3511,18 @@ body.mc-mobile-app .mc-fs-timer-btn {
     }
   }
 
+  function renderStreak() {
+    if (!statStreak) return;
+    const days = computeStreakDays(solves);
+    if (days > 0) {
+      statStreak.textContent = `🔥 ${days}`;
+      statStreak.classList.remove('mc-stat-empty');
+    } else {
+      statStreak.textContent = '0';
+      statStreak.classList.add('mc-stat-empty');
+    }
+  }
+
   // ---------- Chart ----------
 
   const CHART_LINES_KEY = 'mattcubing_chart_lines';
@@ -4252,6 +4270,7 @@ body.mc-mobile-app .mc-fs-timer-btn {
     const stats = computeStats();
     renderStats(stats);
     renderSessionStats();
+    renderStreak();
     buildChart(stats);
     renderHistory(stats);
     syncUserStats(stats);
